@@ -121,3 +121,43 @@ function getGenerationFromId(id: number): number {
   if (id <= 905) return 8;
   return 9;
 }
+
+// Filtrar variantes no deseadas de Pokémon
+// Elimina variantes como mimikyu-disguised, dudunsparce-2-segments
+// Pero mantiene mega, gigantamax, regional (alola, galar, hisui)
+export function isDesiredPokemonVariant(name: string): boolean {
+  const undesiredSuffixes = [
+    "-disguised",
+    "-2-segments",
+    "-gmax", // algunas variantes gigantamax
+    "-totem", // formas totem de Alola
+    "-phony",
+    "-battle-bond",
+    "-ash-greninja",
+    "-eternamax",
+    "-active",
+    "-male",
+    "-female",
+    "-average",
+    "-small",
+    "-large",
+    "-single-strike",
+    "-rapid-strike",
+    "-type-null-normal", // variantes específicas no deseadas
+  ];
+  
+  // Mantener estas formas deseadas
+  const desiredKeywords = ["mega", "gigantamax", "alola", "galar", "hisui", "paldea", "regional"];
+  
+  // Si contiene palabras deseadas, mantener
+  if (desiredKeywords.some(keyword => name.includes(keyword))) {
+    return true;
+  }
+  
+  // Si contiene sufijos no deseados, filtrar
+  if (undesiredSuffixes.some(suffix => name.endsWith(suffix))) {
+    return false;
+  }
+  
+  return true;
+}

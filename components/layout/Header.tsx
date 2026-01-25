@@ -16,9 +16,9 @@ export default function Header() {
           <img
             src="/pokeball.png"
             alt="Pokéball"
-            className="w-7 h-7"
+            className="w-7 h-7 brightness-200 invert"
           />
-          <h1 className="text-xl font-bold text-red-500 hidden sm:inline">Pokédex</h1>
+          <h1 className="text-xl font-bold text-red-500 hidden sm:inline">Manolodex</h1>
         </Link>
 
         <nav className="flex items-center gap-12">
@@ -29,10 +29,10 @@ export default function Header() {
                 ? "text-red-500"
                 : "text-slate-300 hover:text-white"
             }`}
-            title="Inicio"
+            title="Pokémon"
           >
             <HomeIcon />
-            <span>Inicio</span>
+            <span>Pokémon</span>
           </Link>
           <Link
             href="/tipos"

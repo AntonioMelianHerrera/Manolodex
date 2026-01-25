@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { TYPE_OFFENSIVE, TYPE_SPANISH_NAMES, TYPE_DEFENSIVE } from "@/lib/typeData";
 import { TYPE_COLORS } from "@/types/colors";
+import { isDesiredPokemonVariant } from "@/lib/pokemon";
 
 type GameMode = "easy" | "hard" | "infinite";
 
@@ -65,11 +66,14 @@ export default function TypeTrainingGame({ mode, onExit }: TypeTrainingGameProps
         );
         const data = await response.json();
 
-        const pokemonList = data.results.map((p: any, index: number) => ({
-          id: index + 1,
-          name: p.name,
-          imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${index + 1}.png`,
-        }));
+        const pokemonList = data.results
+          .map((p: any, index: number) => ({
+            id: index + 1,
+            name: p.name,
+            imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${index + 1}.png`,
+            types: [],
+          }))
+          .filter((p: any) => isDesiredPokemonVariant(p.name));
 
         setAllPokemon(pokemonList);
       } catch (error) {

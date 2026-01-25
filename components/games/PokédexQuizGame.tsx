@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { CheckIcon, XIcon } from "@/components/icons";
+import { isDesiredPokemonVariant } from "@/lib/pokemon";
 
 type GameMode = "normal" | "infinite" | "custom";
 
@@ -12,6 +13,11 @@ interface Pokemon {
   imageUrl: string;
   description: string;
   generation: number;
+}
+
+// Tipo interno para gestionar tipos sin exponerlos en la UI
+interface PokemonWithTypes extends Pokemon {
+  types: string[];
 }
 
 interface GameState {
@@ -51,7 +57,7 @@ export default function PokédexQuizGame({
   });
 
   const [gameStarted, setGameStarted] = useState(false);
-  const [allPokemon, setAllPokemon] = useState<Pokemon[]>([]);
+  const [allPokemon, setAllPokemon] = useState<PokemonWithTypes[]>([]);
   const [loading, setLoading] = useState(false);
   const [usedPokemon, setUsedPokemon] = useState<Set<number>>(new Set());
   const [countdown, setCountdown] = useState(0);
@@ -70,7 +76,7 @@ export default function PokédexQuizGame({
     return 9;
   };
 
-  // Obtener descripción del Pokémon
+  // Obtener descripción del Pokémon (aleatoria de todas las disponibles)
   const getPokemonDescription = async (pokemonId: number): Promise<string> => {
     try {
       const response = await fetch(
@@ -78,60 +84,80 @@ export default function PokédexQuizGame({
       );
       const data = await response.json();
 
-      // Buscar descripción en inglés
-      const flavorText = data.flavor_text_entries.find(
+      // Obtener todas las descripciones en español
+      const spanishDescriptions = data.flavor_text_entries.filter(
         (entry: any) => entry.language.name === "es"
       );
 
-      if (flavorText) {
-        return flavorText.flavor_text
-          .replace(/\n/g, " ")
-          .replace(/\f/g, " ")
-          .trim();
+      // Si no hay descripciones en español, retornar mensaje
+      if (spanishDescriptions.length === 0) {
+        return "Descripción no disponible";
       }
 
-      return "Descripción no disponible";
+      // Seleccionar una aleatoria de las disponibles
+      const randomIndex = Math.floor(Math.random() * spanishDescriptions.length);
+      const selectedDescription = spanishDescriptions[randomIndex];
+
+      return selectedDescription.flavor_text
+        .replace(/\n/g, " ")
+        .replace(/\f/g, " ")
+        .trim();
     } catch (error) {
       console.error("Error loading pokemon description:", error);
       return "Descripción no disponible";
     }
   };
 
-  // Censurar nombre del pokémon en la descripción
-  const censorPokemonName = (description: string, pokemonName: string): string => {
-    const regex = new RegExp(pokemonName, "gi");
-    return description.replace(regex, "_____");
+  // Censurar todos los nombres de pokémon en la descripción
+  const censorAllPokemonNames = (description: string, pokemonList: PokemonWithTypes[]): string => {
+    let censored = description;
+    pokemonList.forEach((pokemon) => {
+      const regex = new RegExp(pokemon.name, "gi");
+      censored = censored.replace(regex, "_____");
+    });
+    return censored;
   };
 
-  // Cargar lista de pokémon con descripciones
+  // Obtener tipos del Pokémon
+  const getPokemonTypes = async (pokemonId: number): Promise<string[]> => {
+    try {
+      const response = await fetch(
+        `https://pokeapi.co/api/v2/pokemon/${pokemonId}`
+      );
+      const data = await response.json();
+      return data.types.map((t: any) => t.type.name);
+    } catch (error) {
+      console.error("Error loading pokemon types:", error);
+      return [];
+    }
+  };
+
+  // Cargar lista de pokémon sin descripciones inicialmente
   useEffect(() => {
     const fetchPokemonList = async () => {
       try {
         const response = await fetch(
-          `https://pokeapi.co/api/v2/pokemon?limit=${TOTAL_POKEMON}`
+          `https://pokeapi.co/api/v2/pokemon?limit=905`
         );
         const data = await response.json();
 
-        const pokemonListWithDescriptions: Pokemon[] = await Promise.all(
-          data.results
-            .map((p: any, index: number) => ({
-              id: index + 1,
-              name: p.name,
-              imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${
-                index + 1
-              }.png`,
-              generation: getGenerationFromId(index + 1),
-              index,
-            }))
-            .filter((p: any) => selectedGenerations.includes(p.generation))
-            .slice(0, 300) // Limitar a 300 para no sobrecargar
-            .map(async (p: any) => ({
-              ...p,
-              description: await getPokemonDescription(p.id),
-            }))
-        );
+        const pokemonList: PokemonWithTypes[] = data.results
+          .map((p: any, index: number) => ({
+            id: index + 1,
+            name: p.name,
+            imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${
+              index + 1
+            }.png`,
+            generation: getGenerationFromId(index + 1),
+            description: "",
+            types: [],
+          }))
+          .filter((p: any) => 
+            isDesiredPokemonVariant(p.name) &&
+            selectedGenerations.includes(p.generation)
+          );
 
-        setAllPokemon(pokemonListWithDescriptions);
+        setAllPokemon(pokemonList);
       } catch (error) {
         console.error("Error loading pokemon list:", error);
       }
@@ -172,14 +198,23 @@ export default function PokédexQuizGame({
     }
   }, [gameState.status, gameState.userAnswer]);
 
-  // Seleccionar pokémon único (no repetido)
-  const getUniquePokemon = (): Pokemon => {
-    let randomId;
-    do {
-      randomId = Math.floor(Math.random() * allPokemon.length);
-    } while (usedPokemon.has(randomId) && usedPokemon.size < Math.min(allPokemon.length, 100));
+  // Seleccionar pokémon único (no repetido en todo el juego)
+  const getUniquePokemon = (): PokemonWithTypes => {
+    let pokemon: PokemonWithTypes;
+    let attempts = 0;
+    const maxAttempts = 1000;
 
-    return allPokemon[randomId];
+    do {
+      const randomId = Math.floor(Math.random() * allPokemon.length);
+      pokemon = allPokemon[randomId];
+      attempts++;
+    } while (
+      usedPokemon.has(pokemon.id) &&
+      usedPokemon.size < allPokemon.length &&
+      attempts < maxAttempts
+    );
+
+    return pokemon;
   };
 
   // Iniciar el juego
@@ -210,35 +245,75 @@ export default function PokédexQuizGame({
     }
   };
 
-  // Generar pregunta con 4 opciones
+  // Generar pregunta con 4 opciones (incorrectas deben compartir al menos 1 tipo)
   const generateQuestion = async () => {
     setLoading(true);
     try {
       const correctPokemon = getUniquePokemon();
+      
+      // Cargar tipos y descripción del Pokémon correcto
+      const [description, types] = await Promise.all([
+        getPokemonDescription(correctPokemon.id),
+        getPokemonTypes(correctPokemon.id),
+      ]);
+      
+      const correctPokemonWithData = { ...correctPokemon, description, types };
       setUsedPokemon((prev) => new Set(prev).add(correctPokemon.id));
 
-      // Seleccionar 3 pokémon incorrectos
+      // Seleccionar 3 pokémon incorrectos que compartan al menos 1 tipo con el correcto
       const incorrectPokemon = [];
       const tempUsedIds = new Set(usedPokemon);
       tempUsedIds.add(correctPokemon.id);
 
-      while (incorrectPokemon.length < 3 && incorrectPokemon.length < allPokemon.length - 1) {
-        const randomId = Math.floor(Math.random() * allPokemon.length);
-        if (!tempUsedIds.has(randomId)) {
-          incorrectPokemon.push(allPokemon[randomId]);
-          tempUsedIds.add(randomId);
+      // Filtrar candidatos potenciales (que no hayan sido usados)
+      const potentialCandidates = allPokemon.filter((p) => !tempUsedIds.has(p.id));
+
+      // Cargar tipos en batches para los primeros 200 candidatos
+      const batchSize = 20;
+      const candidatesToCheck = potentialCandidates.slice(0, 200);
+      const candidatesWithTypes: PokemonWithTypes[] = [];
+      
+      for (let i = 0; i < candidatesToCheck.length; i += batchSize) {
+        const batch = candidatesToCheck.slice(i, i + batchSize);
+        const batchWithTypes = await Promise.all(
+          batch.map(async (p) => ({
+            ...p,
+            types: await getPokemonTypes(p.id),
+          }))
+        );
+        candidatesWithTypes.push(...batchWithTypes);
+      }
+
+      // Filtrar por tipo compartido
+      const candidatesByType = candidatesWithTypes.filter((p) =>
+        p.types.some((type) => types.includes(type))
+      );
+
+      // Si hay suficientes candidatos con tipos compartidos, usarlos; si no, usar todos los cargados
+      const candidates =
+        candidatesByType.length >= 3 ? candidatesByType : candidatesWithTypes;
+
+      while (
+        incorrectPokemon.length < 3 &&
+        incorrectPokemon.length < candidates.length - 1
+      ) {
+        const randomId = Math.floor(Math.random() * candidates.length);
+        const candidate = candidates[randomId];
+        if (!tempUsedIds.has(candidate.id)) {
+          incorrectPokemon.push(candidate);
+          tempUsedIds.add(candidate.id);
         }
       }
 
       // Mezclar opciones
-      const options = [correctPokemon, ...incorrectPokemon].sort(
+      const options = [correctPokemonWithData, ...incorrectPokemon].sort(
         () => Math.random() - 0.5
       );
 
       setGameState((prev) => ({
         ...prev,
         status: "waiting",
-        currentPokemon: correctPokemon,
+        currentPokemon: correctPokemonWithData,
         options,
         userAnswer: null,
       }));
@@ -397,8 +472,8 @@ export default function PokédexQuizGame({
         <p className="text-slate-400 mb-4 text-sm">¿Qué Pokémon es este?</p>
         <div className="bg-slate-800 rounded-lg p-6 min-h-24 flex items-center justify-center">
           <p className="text-white text-lg leading-relaxed text-center italic">
-            "{gameState.currentPokemon?.description && gameState.currentPokemon?.name
-              ? censorPokemonName(gameState.currentPokemon.description, gameState.currentPokemon.name)
+            "{gameState.currentPokemon?.description
+              ? censorAllPokemonNames(gameState.currentPokemon.description, allPokemon)
               : gameState.currentPokemon?.description}"
           </p>
         </div>

@@ -271,10 +271,10 @@ export default function TypesPage() {
               <select
                 value={attackingType}
                 onChange={(e) => setAttackingType(e.target.value)}
-                className="flex-1 p-2 rounded-lg bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="flex-1 p-2 rounded-lg bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer"
               >
                 {POKEMON_TYPES.map((type) => (
-                  <option key={type} value={type}>
+                  <option key={type} value={type} className="cursor-pointer">
                     {TYPE_SPANISH_NAMES[type]}
                   </option>
                 ))}
@@ -303,10 +303,10 @@ export default function TypesPage() {
               <select
                 value={defendingType}
                 onChange={(e) => setDefendingType(e.target.value)}
-                className="flex-1 p-2 rounded-lg bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="flex-1 p-2 rounded-lg bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer"
               >
                 {POKEMON_TYPES.map((type) => (
-                  <option key={type} value={type}>
+                  <option key={type} value={type} className="cursor-pointer">
                     {TYPE_SPANISH_NAMES[type]}
                   </option>
                 ))}
@@ -333,11 +333,11 @@ export default function TypesPage() {
               <select
                 value={secondaryType}
                 onChange={(e) => setSecondaryType(e.target.value)}
-                className="flex-1 p-2 rounded-lg bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="flex-1 p-2 rounded-lg bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer"
               >
-                <option value="none">Ninguno</option>
+                <option value="none" className="cursor-pointer">Ninguno</option>
                 {POKEMON_TYPES.map((type) => (
-                  <option key={type} value={type}>
+                  <option key={type} value={type} className="cursor-pointer">
                     {TYPE_SPANISH_NAMES[type]}
                   </option>
                 ))}

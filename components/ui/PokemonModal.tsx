@@ -788,16 +788,17 @@ function HorizontalEvolutionChain({
   onSelectPokemon: (pokemon: PokemonListItem) => void;
 }) {
   const lastPokemon = chain[chain.length - 1];
+  const hasRamifications = lastPokemon && lastPokemon.evolvesTo.length > 1;
   
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex items-start gap-4 overflow-x-auto py-2">
       {/* Cadena horizontal */}
-      <div className="flex items-center gap-4 overflow-x-auto py-2">
+      <div className="flex items-center gap-4 flex-shrink-0">
         {chain.map((pokemon, index) => (
           <div key={`${pokemon.id}-${index}`} className="flex items-center gap-4 flex-shrink-0">
             <PokemonEvolutionCard pokemon={pokemon} onSelectPokemon={onSelectPokemon} />
 
-            {/* Flecha y método de evolución */}
+            {/* Flecha y método de evolución - solo si no es el último, o si es el último sin ramificaciones */}
             {index < chain.length - 1 && (
               <div className="flex flex-col items-center gap-2 flex-shrink-0">
                 <div className="text-2xl text-red-500">→</div>
@@ -810,12 +811,18 @@ function HorizontalEvolutionChain({
         ))}
       </div>
 
-      {/* Si el último Pokémon tiene ramificaciones, mostrarlas sin repetir el Pokémon */}
-      {lastPokemon && lastPokemon.evolvesTo.length > 1 && (
-        <div className="mt-2 ml-4 border-l-2 border-slate-600 pl-4">
+      {/* Si el último Pokémon tiene ramificaciones, mostrarlas al lado de la cadena */}
+      {hasRamifications && (
+        <div className="flex gap-2 flex-shrink-0 items-center">
+          {/* Línea vertical conectora */}
+          <div className="relative w-8" style={{ minHeight: '120px' }}>
+            <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-slate-600"></div>
+          </div>
+
+          {/* Ramas verticales */}
           <div className="space-y-4">
             {lastPokemon.evolvesTo.map((evolution, index) => (
-              <div key={`${evolution.id}-${index}`} className="flex items-center gap-2">
+              <div key={`${evolution.id}-${index}`} className="flex items-center gap-2 flex-shrink-0">
                 {/* Línea conectora horizontal */}
                 <div className="w-4 h-0.5 bg-slate-600"></div>
 
@@ -849,9 +856,13 @@ function EvolutionTreeComponent({
   node: EvolutionNode;
   onSelectPokemon: (pokemon: PokemonListItem) => void;
 }) {
-  // Si no hay evoluciones, no mostrar nada
+  // Si no hay evoluciones, mostrar solo el Pokémon actual
   if (node.evolvesTo.length === 0) {
-    return null;
+    return (
+      <div className="flex items-center">
+        <PokemonEvolutionCard pokemon={node} onSelectPokemon={onSelectPokemon} />
+      </div>
+    );
   }
 
   // Si tiene UNA sola evolución directa, mostrar como cadena lineal

@@ -30,7 +30,7 @@ export default function Filters({
       {/* Botón desplegable */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full text-left font-semibold mb-2"
+        className="w-full text-left font-semibold mb-2 cursor-pointer"
       >
         Filtros {open ? "▲" : "▼"}
       </button>
@@ -44,7 +44,7 @@ export default function Filters({
   {TYPES.map((type) => (
     <label
   key={type}
-  className="flex items-center gap-1 p-1 rounded"
+  className="flex items-center gap-1 p-1 rounded cursor-pointer"
   style={{ backgroundColor: TYPE_COLORS[type] }}
 >
   <input
@@ -69,7 +69,7 @@ export default function Filters({
             <p className="text-xs text-slate-400 mb-1">Generación</p>
             <div className="flex gap-2 flex-wrap">
               {GENERATIONS.map((gen) => (
-                <label key={gen} className="flex gap-1">
+                <label key={gen} className="flex gap-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedGenerations.includes(gen)}

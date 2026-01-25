@@ -219,3 +219,14 @@ export function AbilitiesIcon() {
     </svg>
   );
 }
+
+export function SilhouetteIcon() {
+  return (
+    <img
+      src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png"
+      alt="Pikachu Silhouette"
+      className="w-6 h-6 object-contain brightness-0 invert"
+      style={{ filter: "brightness(0) invert(1)" }}
+    />
+  );
+}

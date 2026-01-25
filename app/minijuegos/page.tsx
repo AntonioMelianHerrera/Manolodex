@@ -4,17 +4,19 @@ import { useState, useEffect } from "react";
 import TypeTrainingGame from "@/components/games/TypeTrainingGame";
 import SoundQuizGame from "@/components/games/SoundQuizGame";
 import PokédexQuizGame from "@/components/games/PokédexQuizGame";
-import { TypesIcon, SoundIcon, PokedexIcon, PlayIcon, SettingsIcon } from "@/components/icons";
+import SilhouetteQuizGame from "@/components/games/SilhouetteQuizGame";
+import { TypesIcon, SoundIcon, PokedexIcon, PlayIcon, SettingsIcon, SilhouetteIcon } from "@/components/icons";
 
-type GameType = "none" | "type-training" | "type-training-easy" | "type-training-hard" | "type-training-infinite" | "sound-quiz" | "sound-quiz-normal" | "sound-quiz-infinite" | "sound-quiz-custom" | "pokedex-quiz" | "pokedex-quiz-normal" | "pokedex-quiz-infinite" | "pokedex-quiz-custom";
+type GameType = "none" | "type-training" | "type-training-easy" | "type-training-hard" | "type-training-infinite" | "sound-quiz" | "sound-quiz-normal" | "sound-quiz-infinite" | "sound-quiz-custom" | "pokedex-quiz" | "pokedex-quiz-normal" | "pokedex-quiz-infinite" | "pokedex-quiz-custom" | "silhouette-quiz" | "silhouette-quiz-all" | "silhouette-quiz-generations";
 
 export default function MinijuegosPage() {
   const [selectedGame, setSelectedGame] = useState<GameType>("none");
   const [showTypeTrainingModes, setShowTypeTrainingModes] = useState(false);
   const [showSoundQuizModes, setShowSoundQuizModes] = useState(false);
   const [showPokédexQuizModes, setShowPokédexQuizModes] = useState(false);
+  const [showSilhouetteQuizModes, setShowSilhouetteQuizModes] = useState(false);
   const [showGenerationFilter, setShowGenerationFilter] = useState(false);
-  const [currentGameType, setCurrentGameType] = useState<"sound" | "pokedex" | null>(null);
+  const [currentGameType, setCurrentGameType] = useState<"sound" | "pokedex" | "silhouette" | null>(null);
   const [bestStreak, setBestStreak] = useState(0);
   const [selectedGenerations, setSelectedGenerations] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
@@ -47,6 +49,8 @@ export default function MinijuegosPage() {
         return <SoundIcon />;
       case "pokedex":
         return <PokedexIcon />;
+      case "silhouette":
+        return <SilhouetteIcon />;
       default:
         return <TypesIcon />;
     }
@@ -71,6 +75,12 @@ export default function MinijuegosPage() {
       description: "Adivina el Pokémon por su descripción",
       iconType: "pokedex" as const,
     },
+    {
+      id: "silhouette-quiz" as const,
+      title: "Quiz de Siluetas",
+      description: "Adivina el Pokémon por su silueta",
+      iconType: "silhouette" as const,
+    },
   ];
 
   if (selectedGame !== "none") {
@@ -92,6 +102,8 @@ export default function MinijuegosPage() {
         {selectedGame === "pokedex-quiz-normal" && <PokédexQuizGame mode="normal" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
         {selectedGame === "pokedex-quiz-infinite" && <PokédexQuizGame mode="infinite" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
         {selectedGame === "pokedex-quiz-custom" && <PokédexQuizGame mode="custom" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
+        {selectedGame === "silhouette-quiz-all" && <SilhouetteQuizGame mode="all" onExit={() => setSelectedGame("none")} />}
+        {selectedGame === "silhouette-quiz-generations" && <SilhouetteQuizGame mode="generations" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
       </section>
     );
   }
@@ -367,6 +379,108 @@ export default function MinijuegosPage() {
     );
   }
 
+  // Selector de modo para Quiz de Siluetas
+  if (showSilhouetteQuizModes) {
+    return (
+      <section className="max-w-6xl mx-auto p-4 py-8">
+        <button
+          onClick={() => {
+            setShowSilhouetteQuizModes(false);
+            setShowGenerationFilter(false);
+          }}
+          className="mb-6 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+        >
+          ← Volver
+        </button>
+
+        {!showGenerationFilter ? (
+          <>
+            <h2 className="text-3xl font-bold text-red-500 mb-8">
+              Selecciona el Modo
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <button
+                onClick={() => {
+                  setSelectedGame("silhouette-quiz-all");
+                  setShowSilhouetteQuizModes(false);
+                }}
+                className="bg-blue-900 hover:bg-blue-800 border border-blue-700 hover:border-blue-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+              >
+                <div className="text-6xl mb-3 inline-block">
+                  <PokedexIcon />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Gotta Catch 'Em All</h3>
+                <p className="text-slate-300 text-sm mb-4">
+                  Todos los Pokémon • Sin repeticiones
+                </p>
+                <p className="text-blue-300 font-semibold">Sin límite</p>
+              </button>
+
+              <button
+                onClick={() => setShowGenerationFilter(true)}
+                className="bg-purple-900 hover:bg-purple-800 border border-purple-700 hover:border-purple-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+              >
+                <div className="text-6xl mb-3 inline-block">
+                  <SettingsIcon />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Por Generación</h3>
+                <p className="text-slate-300 text-sm mb-4">
+                  Elige tus generaciones favoritas
+                </p>
+                <p className="text-purple-300 font-semibold">A tu medida</p>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-3xl font-bold text-red-500 mb-6">
+              Selecciona las Generaciones
+            </h2>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((gen) => (
+                <label
+                  key={gen}
+                  className="flex items-center gap-3 p-4 bg-slate-900 rounded-lg border border-slate-800 cursor-pointer hover:border-blue-500 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedGenerations.includes(gen)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedGenerations([...selectedGenerations, gen].sort());
+                      } else {
+                        setSelectedGenerations(
+                          selectedGenerations.filter((g) => g !== gen)
+                        );
+                      }
+                    }}
+                    className="w-5 h-5"
+                  />
+                  <span className="text-white font-semibold">
+                    Generación {gen}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedGame("silhouette-quiz-generations");
+                setShowSilhouetteQuizModes(false);
+                setShowGenerationFilter(false);
+              }}
+              className="w-full bg-purple-600 hover:bg-purple-700 border border-purple-500 rounded-lg p-4 transition-colors text-white font-semibold"
+            >
+              Comenzar Quiz
+            </button>
+          </>
+        )}
+      </section>
+    );
+  }
+
   // Selector de modo para Entrenamiento de Tipos
   if (showTypeTrainingModes) {
     return (
@@ -437,7 +551,7 @@ export default function MinijuegosPage() {
       <h2 className="text-3xl font-bold text-red-500 mb-2">Minijuegos</h2>
       <p className="text-slate-400 mb-8">Elige un minijuego para comenzar</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {games.map((game: any) => (
           <button
             key={game.id}
@@ -448,11 +562,13 @@ export default function MinijuegosPage() {
                 setShowSoundQuizModes(true);
               } else if (game.id === "pokedex-quiz") {
                 setShowPokédexQuizModes(true);
+              } else if (game.id === "silhouette-quiz") {
+                setShowSilhouetteQuizModes(true);
               } else {
                 setSelectedGame(game.id as GameType);
               }
             }}
-            className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500 rounded-xl p-6 transition-all transform hover:scale-105"
+            className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500 rounded-xl p-6 transition-all transform hover:scale-105 cursor-pointer"
           >
             <div className="text-5xl mb-3 inline-block">
               {renderGameIcon(game.iconType)}

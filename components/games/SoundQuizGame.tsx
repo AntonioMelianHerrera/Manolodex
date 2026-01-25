@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { PlayIcon, CheckIcon, XIcon } from "@/components/icons";
+import { isDesiredPokemonVariant } from "@/lib/pokemon";
 
 type GameMode = "normal" | "infinite" | "custom";
 
@@ -93,7 +94,10 @@ export default function SoundQuizGame({
             }.ogg`,
             generation: getGenerationFromId(index + 1),
           }))
-          .filter((p: Pokemon) => selectedGenerations.includes(p.generation));
+          .filter((p: Pokemon) => 
+            isDesiredPokemonVariant(p.name) &&
+            selectedGenerations.includes(p.generation)
+          );
 
         setAllPokemon(pokemonList);
       } catch (error) {
