@@ -4,15 +4,20 @@ import { useState, useEffect } from "react";
 import TypeTrainingGame from "@/components/games/TypeTrainingGame";
 import SoundQuizGame from "@/components/games/SoundQuizGame";
 import PokédexQuizGame from "@/components/games/PokédexQuizGame";
-import { TypesIcon, SoundIcon, PokedexIcon, PlayIcon, SettingsIcon } from "@/components/icons";
+import ItemsQuizGame from "@/components/games/ItemsQuizGame";
+import { TypesIcon, SoundIcon, PokedexIcon, PlayIcon, SettingsIcon, ItemsIcon } from "@/components/icons";
 
-type GameType = "none" | "type-training" | "type-training-easy" | "type-training-hard" | "type-training-infinite" | "sound-quiz" | "sound-quiz-normal" | "sound-quiz-infinite" | "sound-quiz-custom" | "pokedex-quiz" | "pokedex-quiz-normal" | "pokedex-quiz-infinite" | "pokedex-quiz-custom";
+type GameType = "none" | "type-training" | "type-training-easy" | "type-training-hard" | "type-training-infinite" | 
+  "sound-quiz" | "sound-quiz-normal" | "sound-quiz-infinite" | "sound-quiz-custom" | 
+  "pokedex-quiz" | "pokedex-quiz-normal" | "pokedex-quiz-infinite" | "pokedex-quiz-custom" |
+  "items-quiz" | "items-quiz-easy" | "items-quiz-hard" | "items-quiz-custom";
 
 export default function MinijuegosPage() {
   const [selectedGame, setSelectedGame] = useState<GameType>("none");
   const [showTypeTrainingModes, setShowTypeTrainingModes] = useState(false);
   const [showSoundQuizModes, setShowSoundQuizModes] = useState(false);
   const [showPokédexQuizModes, setShowPokédexQuizModes] = useState(false);
+  const [showItemsQuizModes, setShowItemsQuizModes] = useState(false);
   const [showGenerationFilter, setShowGenerationFilter] = useState(false);
   const [currentGameType, setCurrentGameType] = useState<"sound" | "pokedex" | null>(null);
   const [bestStreak, setBestStreak] = useState(0);
@@ -47,6 +52,8 @@ export default function MinijuegosPage() {
         return <SoundIcon />;
       case "pokedex":
         return <PokedexIcon />;
+      case "items":
+        return <ItemsIcon />;
       default:
         return <TypesIcon />;
     }
@@ -71,6 +78,12 @@ export default function MinijuegosPage() {
       description: "Adivina el Pokémon por su descripción",
       iconType: "pokedex" as const,
     },
+    {
+      id: "items-quiz" as const,
+      title: "Quiz de Objetos",
+      description: "Adivina el objeto por su descripción",
+      iconType: "items" as const,
+    },
   ];
 
   if (selectedGame !== "none") {
@@ -92,140 +105,9 @@ export default function MinijuegosPage() {
         {selectedGame === "pokedex-quiz-normal" && <PokédexQuizGame mode="normal" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
         {selectedGame === "pokedex-quiz-infinite" && <PokédexQuizGame mode="infinite" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
         {selectedGame === "pokedex-quiz-custom" && <PokédexQuizGame mode="custom" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
-      </section>
-    );
-  }
-
-  // Selector de modo para Quiz de Sonidos
-  if (showSoundQuizModes) {
-    return (
-      <section className="max-w-6xl mx-auto p-4 py-8">
-        <button
-          onClick={() => {
-            setShowSoundQuizModes(false);
-            setShowGenerationFilter(false);
-          }}
-          className="mb-6 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-        >
-          ← Volver
-        </button>
-
-        {!showGenerationFilter ? (
-          <>
-            <h2 className="text-3xl font-bold text-red-500 mb-8">
-              Selecciona el Modo
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <button
-                onClick={() => {
-                  setSelectedGame("sound-quiz-normal");
-                  setShowSoundQuizModes(false);
-                }}
-                className="bg-blue-900 hover:bg-blue-800 border border-blue-700 hover:border-blue-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
-              >
-                <div className="text-6xl mb-3 inline-block">
-                  <SoundIcon />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Normal</h3>
-                <p className="text-slate-300 text-sm mb-4">
-                  10 Pokémon • Continúa aunque falles
-                </p>
-                <p className="text-blue-300 font-semibold">Perfecto para practicar</p>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSelectedGame("sound-quiz-infinite");
-                  setShowSoundQuizModes(false);
-                }}
-                className="bg-red-900 hover:bg-red-800 border border-red-700 hover:border-red-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
-              >
-                <div className="text-6xl mb-3 inline-block">
-                  <SoundIcon />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Infinito</h3>
-                <p className="text-slate-300 text-sm mb-4">
-                  Sin fin • Termina en el primer error
-                </p>
-                <p className="text-red-300 font-semibold">Modo Desafío</p>
-              </button>
-
-              <button
-                onClick={() => setShowGenerationFilter(true)}
-                className="bg-purple-900 hover:bg-purple-800 border border-purple-700 hover:border-purple-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
-              >
-                <div className="text-6xl mb-3 inline-block">
-                  <SettingsIcon />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Personalizado</h3>
-                <p className="text-slate-300 text-sm mb-4">
-                  Elige generaciones y dificultad
-                </p>
-                <p className="text-purple-300 font-semibold">A tu medida</p>
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <h2 className="text-3xl font-bold text-red-500 mb-6">
-              Selecciona las Generaciones
-            </h2>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((gen) => (
-                <label
-                  key={gen}
-                  className="flex items-center gap-3 p-4 bg-slate-900 rounded-lg border border-slate-800 cursor-pointer hover:border-blue-500 transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedGenerations.includes(gen)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedGenerations([...selectedGenerations, gen].sort());
-                      } else {
-                        setSelectedGenerations(
-                          selectedGenerations.filter((g) => g !== gen)
-                        );
-                      }
-                    }}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-white font-semibold">
-                    Generación {gen}
-                  </span>
-                </label>
-              ))}
-            </div>
-
-            <div className="mb-8">
-              <h3 className="text-xl font-semibold text-white mb-4">Selecciona la Dificultad</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    setSelectedGame("sound-quiz-normal");
-                    setShowSoundQuizModes(false);
-                    setShowGenerationFilter(false);
-                  }}
-                  className="bg-blue-900 hover:bg-blue-800 border border-blue-700 hover:border-blue-500 rounded-lg p-4 transition-colors text-white font-semibold"
-                >
-                  Normal (10 rondas)
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedGame("sound-quiz-infinite");
-                    setShowSoundQuizModes(false);
-                    setShowGenerationFilter(false);
-                  }}
-                  className="bg-red-900 hover:bg-red-800 border border-red-700 hover:border-red-500 rounded-lg p-4 transition-colors text-white font-semibold"
-                >
-                  Infinito
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+        {selectedGame === "items-quiz-easy" && <ItemsQuizGame mode="easy" onExit={() => setSelectedGame("none")} />}
+        {selectedGame === "items-quiz-hard" && <ItemsQuizGame mode="hard" onExit={() => setSelectedGame("none")} />}
+        {selectedGame === "items-quiz-custom" && <ItemsQuizGame mode="custom" onExit={() => setSelectedGame("none")} />}
       </section>
     );
   }
@@ -367,6 +249,211 @@ export default function MinijuegosPage() {
     );
   }
 
+  // Selector de modo para Quiz de Sonidos
+  if (showSoundQuizModes) {
+    return (
+      <section className="max-w-6xl mx-auto p-4 py-8">
+        <button
+          onClick={() => {
+            setShowSoundQuizModes(false);
+            setShowGenerationFilter(false);
+          }}
+          className="mb-6 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+        >
+          ← Volver
+        </button>
+
+        {!showGenerationFilter ? (
+          <>
+            <h2 className="text-3xl font-bold text-red-500 mb-8">
+              Selecciona el Modo
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <button
+                onClick={() => {
+                  setSelectedGame("sound-quiz-normal");
+                  setShowSoundQuizModes(false);
+                }}
+                className="bg-blue-900 hover:bg-blue-800 border border-blue-700 hover:border-blue-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+              >
+                <div className="text-6xl mb-3 inline-block">
+                  <SoundIcon />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Normal</h3>
+                <p className="text-slate-300 text-sm mb-4">
+                  10 Pokémon • Continúa aunque falles
+                </p>
+                <p className="text-blue-300 font-semibold">Perfecto para practicar</p>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedGame("sound-quiz-infinite");
+                  setShowSoundQuizModes(false);
+                }}
+                className="bg-red-900 hover:bg-red-800 border border-red-700 hover:border-red-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+              >
+                <div className="text-6xl mb-3 inline-block">
+                  <SoundIcon />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Infinito</h3>
+                <p className="text-slate-300 text-sm mb-4">
+                  Sin fin • Termina en el primer error
+                </p>
+                <p className="text-red-300 font-semibold">Modo Desafío</p>
+              </button>
+
+              <button
+                onClick={() => setShowGenerationFilter(true)}
+                className="bg-purple-900 hover:bg-purple-800 border border-purple-700 hover:border-purple-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+              >
+                <div className="text-6xl mb-3 inline-block">
+                  <SettingsIcon />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Personalizado</h3>
+                <p className="text-slate-300 text-sm mb-4">
+                  Elige generaciones y dificultad
+                </p>
+                <p className="text-purple-300 font-semibold">A tu medida</p>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-3xl font-bold text-red-500 mb-6">
+              Selecciona las Generaciones
+            </h2>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((gen) => (
+                <label
+                  key={gen}
+                  className="flex items-center gap-3 p-4 bg-slate-900 rounded-lg border border-slate-800 cursor-pointer hover:border-blue-500 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedGenerations.includes(gen)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedGenerations([...selectedGenerations, gen].sort());
+                      } else {
+                        setSelectedGenerations(
+                          selectedGenerations.filter((g) => g !== gen)
+                        );
+                      }
+                    }}
+                    className="w-5 h-5"
+                  />
+                  <span className="text-white font-semibold">
+                    Generación {gen}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold text-white mb-4">Selecciona la Dificultad</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => {
+                    setSelectedGame("sound-quiz-normal");
+                    setShowSoundQuizModes(false);
+                    setShowGenerationFilter(false);
+                  }}
+                  className="bg-blue-900 hover:bg-blue-800 border border-blue-700 hover:border-blue-500 rounded-lg p-4 transition-colors text-white font-semibold"
+                >
+                  Normal (10 rondas)
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedGame("sound-quiz-infinite");
+                    setShowSoundQuizModes(false);
+                    setShowGenerationFilter(false);
+                  }}
+                  className="bg-red-900 hover:bg-red-800 border border-red-700 hover:border-red-500 rounded-lg p-4 transition-colors text-white font-semibold"
+                >
+                  Infinito
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+    );
+  }
+
+  // Selector de modo para Quiz de Objetos
+  if (showItemsQuizModes) {
+    return (
+      <section className="max-w-6xl mx-auto p-4 py-8">
+        <button
+          onClick={() => setShowItemsQuizModes(false)}
+          className="mb-6 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+        >
+          ← Volver
+        </button>
+
+        <h2 className="text-3xl font-bold text-red-500 mb-8">
+          Selecciona el Modo
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <button
+            onClick={() => {
+              setSelectedGame("items-quiz-easy");
+              setShowItemsQuizModes(false);
+            }}
+            className="bg-green-900 hover:bg-green-800 border border-green-700 hover:border-green-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+          >
+            <div className="text-6xl mb-3 inline-block">
+              <ItemsIcon />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">Fácil</h3>
+            <p className="text-slate-300 text-sm mb-4">
+              10 objetos • Sin límite de tiempo • Continúa aunque falles
+            </p>
+            <p className="text-green-300 font-semibold">Perfecto para aprender</p>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedGame("items-quiz-hard");
+              setShowItemsQuizModes(false);
+            }}
+            className="bg-yellow-900 hover:bg-yellow-800 border border-yellow-700 hover:border-yellow-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+          >
+            <div className="text-6xl mb-3 inline-block">
+              <ItemsIcon />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">Difícil</h3>
+            <p className="text-slate-300 text-sm mb-4">
+              20 objetos • 10 segundos por pregunta • Continúa aunque falles
+            </p>
+            <p className="text-yellow-300 font-semibold">Para expertos</p>
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedGame("items-quiz-custom");
+              setShowItemsQuizModes(false);
+            }}
+            className="bg-purple-900 hover:bg-purple-800 border border-purple-700 hover:border-purple-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
+          >
+            <div className="text-6xl mb-3 inline-block">
+              <SettingsIcon />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">Personalizado</h3>
+            <p className="text-slate-300 text-sm mb-4">
+              Sin límite de preguntas • Sin límite de tiempo • Termina en el primer error
+            </p>
+            <p className="text-purple-300 font-semibold">A tu medida</p>
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   // Selector de modo para Entrenamiento de Tipos
   if (showTypeTrainingModes) {
     return (
@@ -448,6 +535,8 @@ export default function MinijuegosPage() {
                 setShowSoundQuizModes(true);
               } else if (game.id === "pokedex-quiz") {
                 setShowPokédexQuizModes(true);
+              } else if (game.id === "items-quiz") {
+                setShowItemsQuizModes(true);
               } else {
                 setSelectedGame(game.id as GameType);
               }
