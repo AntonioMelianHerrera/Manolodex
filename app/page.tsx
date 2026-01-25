@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { PokemonListItem } from "@/types/pokemon";
 import { getPokemonList } from "@/lib/pokemon";
 
@@ -9,7 +10,8 @@ import PokemonCard from "@/components/ui/PokemonCard";
 import Filters from "@/components/ui/Filters";
 import PokemonModal from "@/components/ui/PokemonModal";
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
   const [pokemon, setPokemon] = useState<PokemonListItem[]>([]);
   const [search, setSearch] = useState("");
 
@@ -23,6 +25,25 @@ export default function Home() {
   useEffect(() => {
     getPokemonList().then(setPokemon);
   }, []);
+
+  // Procesar parámetro de búsqueda desde URL
+  useEffect(() => {
+    const searchParam = searchParams.get("search");
+    if (searchParam) {
+      setSearch(searchParam);
+      
+      // Buscar el pokémon y abrirlo automáticamente
+      if (pokemon.length > 0) {
+        const foundPokemon = pokemon.find(
+          (p) => p.name.toLowerCase() === searchParam.toLowerCase()
+        );
+        if (foundPokemon) {
+          setSelectedPokemon(foundPokemon);
+          setModalOpen(true);
+        }
+      }
+    }
+  }, [searchParams, pokemon]);
 
   // Filtrado AND: Pokémon debe cumplir todos los tipos seleccionados y la generación
   const filteredPokemon = pokemon.filter((p) => {
@@ -40,12 +61,6 @@ export default function Home() {
 
     return matchesName && matchesType && matchesGeneration;
   });
-
-  // Función para abrir popup desde familia evolutiva
-  const handleSelectPokemon = (pokemon: PokemonListItem) => {
-    setSelectedPokemon(pokemon);
-    setModalOpen(true);
-  };
 
   return (
     <section className="max-w-6xl mx-auto p-4 py-8">
@@ -96,8 +111,19 @@ export default function Home() {
         pokemon={selectedPokemon}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSelectPokemon={handleSelectPokemon} // permite abrir otro Pokémon desde el popup
+        onSelectPokemon={(p) => {
+          setSelectedPokemon(p);
+          setModalOpen(true);
+        }}
       />
     </section>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-96"><div className="text-slate-400">Cargando...</div></div>}>
+      <HomeContent />
+    </Suspense>
   );
 }

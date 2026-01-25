@@ -71,3 +71,40 @@ export function getAbilityTranslation(name: string): string {
   // Fallback: capitalizar y reemplazar guiones con espacios
   return name.charAt(0).toUpperCase() + name.slice(1).replace(/-/g, ' ');
 }
+
+// Diccionario de traducciones de items evolutivos
+const ITEMS_MAP: Record<string, string> = {
+  "fire-stone": "Piedra Fuego",
+  "water-stone": "Piedra Agua",
+  "leaf-stone": "Piedra Hoja",
+  "thunder-stone": "Piedra Trueno",
+  "ice-stone": "Piedra Hielo",
+  "moon-stone": "Piedra Lunar",
+  "sun-stone": "Piedra Solar",
+  "dawn-stone": "Piedra Alba",
+  "dusk-stone": "Piedra Anochecer",
+  "shiny-stone": "Piedra Brillo",
+  "oval-stone": "Piedra Óvalo",
+  "everstone": "Piedra Eterna",
+  "choice-scarf": "Bufanda Elegida",
+  "choice-specs": "Gafas Elegidas",
+  "choice-band": "Banda Elegida",
+  "assault-vest": "Chaleco Asalto",
+  "life-orb": "Orbe Vital",
+  "expert-belt": "Cinturón Experto",
+  "soothe-bell": "Campana Sosiego",
+  "sweet-apple": "Manzana Dulce",
+  "tart-apple": "Manzana Ácida",
+  "cracked-pot": "Jarra Agrietada",
+  "chipped-pot": "Jarra Mellada",
+  "reaper-cloth": "Tela Segadora",
+};
+
+// Función para obtener traducción de item - si no existe, formatea el nombre en español
+export function getItemTranslation(name: string): string {
+  if (ITEMS_MAP[name]) {
+    return ITEMS_MAP[name];
+  }
+  // Fallback: capitalizar y reemplazar guiones con espacios
+  return name.charAt(0).toUpperCase() + name.slice(1).replace(/-/g, ' ');
+}
