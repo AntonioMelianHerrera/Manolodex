@@ -4,19 +4,64 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { CheckIcon, XIcon } from "@/components/icons";
 import { isDesiredPokemonVariant } from "@/lib/pokemon";
+import { useCaughtPokemon } from "@/lib/CaughtPokemonContext";
 
 type GameMode = "all" | "generations";
+
+// Intentar obtener minisprite de múltiples fuentes
+const getMinispriteUrl = async (pokemonId: number): Promise<string | null> => {
+  const sources = [
+    // Gen VIII icons (primera opción)
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${pokemonId}.png`,
+    // Gen IX icons para Pokémon de generación 9
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ix/icons/${pokemonId}.png`,
+    // PokéSprite - repositorio con sprites modernos incluyendo Gen 9
+    `https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8x/icons/${pokemonId}.png`,
+    // Pokémon Showdown sprites modernos (afd - ancient form)
+    `https://raw.githubusercontent.com/smogon/pokemon-showdown/master/public/sprites/pokemon/afd/${pokemonId}.gif`,
+    // Pokémon Showdown standard sprites
+    `https://raw.githubusercontent.com/smogon/pokemon-showdown/master/public/sprites/pokemon/${pokemonId}.png`,
+    // Pokémon Showdown gen9 specific sprites
+    `https://raw.githubusercontent.com/smogon/pokemon-showdown/master/public/sprites/pokemon/gen9/${pokemonId}.png`,
+    // Bulbapedia sprites (Gen 9)
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-vii/icons/${pokemonId}.png`,
+    // Alternative format with names - usando ID como fallback
+    `https://raw.githubusercontent.com/PokemonChinese/pokemon-go-icons/master/assets/${pokemonId}.png`,
+  ];
+
+  for (const url of sources) {
+    try {
+      const response = await fetch(url, { method: "HEAD" });
+      if (response.ok) {
+        return url;
+      }
+    } catch (error) {
+      // Continuar con la siguiente fuente
+      continue;
+    }
+  }
+
+  // Si ninguna fuente funciona, retornar null
+  return null;
+};
 
 interface Pokemon {
   id: number;
   name: string;
   imageUrl: string;
   generation: number;
+  originalId?: number;
 }
 
 // Tipo interno para gestionar tipos sin exponerlos en la UI
 interface PokemonWithTypes extends Pokemon {
   types: string[];
+}
+
+interface CaughtPokemon {
+  id: number;
+  name: string;
+  spriteUrl: string;
 }
 
 interface GameState {
@@ -42,6 +87,8 @@ export default function SilhouetteQuizGame({
   selectedGenerations = [1, 2, 3, 4, 5, 6, 7, 8, 9],
   onExit,
 }: SilhouetteQuizGameProps) {
+  const { addCaughtPokemon, clearCaughtPokemon } = useCaughtPokemon();
+  
   const [gameState, setGameState] = useState<GameState>({
     status: "waiting",
     currentPokemon: null,
@@ -112,6 +159,7 @@ export default function SilhouetteQuizGame({
         let pokemonList = data.results
           .map((p: any, index: number) => ({
             id: index + 1,
+            originalId: index + 1,
             name: p.name,
             imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${
               index + 1
@@ -213,6 +261,7 @@ export default function SilhouetteQuizGame({
     setCountdown(3);
     setGameStarted(true);
     setUsedPokemon(new Set());
+    clearCaughtPokemon();
     setGameState({
       status: "waiting",
       currentPokemon: null,
@@ -255,7 +304,7 @@ export default function SilhouetteQuizGame({
   };
 
   // Procesar respuesta del usuario
-  const handleAnswer = (userAnswer?: string) => {
+  const handleAnswer = async (userAnswer?: string) => {
     if (!gameState.currentPokemon || gameState.status !== "waiting") return;
 
     const answerToValidate = userAnswer ?? gameState.userAnswer;
@@ -266,6 +315,19 @@ export default function SilhouetteQuizGame({
     const feedback = isCorrect
       ? "¡Correcto!"
       : `Incorrecto. Era ${gameState.currentPokemon.name}`;
+
+    // Si es correcto, agregar a pokémon capturados
+    if (isCorrect) {
+      const spriteUrl = await getMinispriteUrl(gameState.currentPokemon.originalId!);
+      // Solo agregar si se encontró sprite disponible
+      if (spriteUrl) {
+        addCaughtPokemon({
+          id: gameState.currentPokemon!.originalId!,
+          name: gameState.currentPokemon!.name,
+          spriteUrl,
+        });
+      }
+    }
 
     setGameState((prev) => ({
       ...prev,
@@ -279,7 +341,7 @@ export default function SilhouetteQuizGame({
   };
 
   // Manejar Enter en el input
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && gameState.status === "waiting") {
       if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
         // Seleccionar la sugerencia - validar directamente
@@ -291,6 +353,19 @@ export default function SilhouetteQuizGame({
         const feedback = isCorrect
           ? "¡Correcto!"
           : `Incorrecto. Era ${gameState.currentPokemon?.name}`;
+
+        // Si es correcto, agregar a pokémon capturados
+        if (isCorrect) {
+          const spriteUrl = await getMinispriteUrl(selectedPokemon.originalId!);
+          // Solo agregar si se encontró sprite disponible
+          if (spriteUrl) {
+            addCaughtPokemon({
+              id: selectedPokemon.originalId!,
+              name: selectedPokemon.name,
+              spriteUrl,
+            });
+          }
+        }
 
         setGameState((prev) => ({
           ...prev,
@@ -451,7 +526,9 @@ export default function SilhouetteQuizGame({
   // JUEGO EN PROGRESO
   // ============================================
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="relative w-full">
+      {/* Contenido principal - centrado */}
+      <div className="max-w-2xl mx-auto px-4">
       {/* Puntuación y progreso */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="bg-slate-900 rounded-lg p-4 border border-slate-800 text-center">
@@ -506,7 +583,7 @@ export default function SilhouetteQuizGame({
                 {suggestions.map((pokemon, index) => (
                   <button
                     key={pokemon.id}
-                    onClick={() => {
+                    onClick={async () => {
                       // Comparar directamente sin esperar el setState
                       const isCorrect =
                         pokemon.name.toLowerCase().trim() ===
@@ -515,6 +592,19 @@ export default function SilhouetteQuizGame({
                       const feedback = isCorrect
                         ? "¡Correcto!"
                         : `Incorrecto. Era ${gameState.currentPokemon?.name}`;
+
+                      // Si es correcto, agregar a pokémon capturados
+                      if (isCorrect) {
+                        const spriteUrl = await getMinispriteUrl(pokemon.originalId!);
+                        // Solo agregar si se encontró sprite disponible
+                        if (spriteUrl) {
+                          addCaughtPokemon({
+                            id: pokemon.originalId!,
+                            name: pokemon.name,
+                            spriteUrl,
+                          });
+                        }
+                      }
 
                       setGameState((prev) => ({
                         ...prev,
@@ -558,6 +648,7 @@ export default function SilhouetteQuizGame({
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

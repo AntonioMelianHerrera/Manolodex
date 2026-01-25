@@ -208,6 +208,7 @@ export default function ItemsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {paginatedItems.map((item) => (
             <button
+              key={item.id}
               onClick={() => {
                 const index = filteredItems.findIndex(i => i.id === item.id);
                 setSelectedItem(item);
