@@ -27,26 +27,12 @@ export function CaughtPokemonProvider({
   const [caughtPokemon, setCaughtPokemon] = useState<CaughtPokemon[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Limpiar localStorage al recargar la página y cargar desde localStorage
+  // Limpiar localStorage al recargar la página
   useEffect(() => {
-    // Marcar que esta es la primera carga
-    const isFirstLoad = !sessionStorage.getItem("appLoaded");
-    
-    if (isFirstLoad) {
-      // Primera carga: limpiar localStorage (refresco de página)
-      localStorage.removeItem("caughtPokemon");
-      sessionStorage.setItem("appLoaded", "true");
-    } else {
-      // No es primera carga: cargar desde localStorage (navegación entre páginas)
-      const stored = localStorage.getItem("caughtPokemon");
-      if (stored) {
-        try {
-          setCaughtPokemon(JSON.parse(stored));
-        } catch (error) {
-          console.error("Error loading caught pokemon from localStorage:", error);
-        }
-      }
-    }
+    // Limpiar siempre al montar el componente (refresco de página)
+    // Los márgenes siempre deben estar limpios al recargar
+    localStorage.removeItem("caughtPokemon");
+    setCaughtPokemon([]);
     setIsHydrated(true);
   }, []);
 
