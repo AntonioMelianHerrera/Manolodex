@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { CheckIcon, XIcon } from "@/components/icons";
-import { isDesiredPokemonVariant } from "@/lib/pokemon";
+import { isDesiredPokemonVariant, addRegionalFormsForGames } from "@/lib/pokemon";
 import { useCaughtPokemon } from "@/lib/CaughtPokemonContext";
+import { getPokemonName } from "@/lib/translations";
 
 type GameMode = "all" | "generations";
 
@@ -167,11 +168,25 @@ export default function SilhouetteQuizGame({
             generation: getGenerationFromId(index + 1),
             index,
           }))
+          .filter((p: any) => isDesiredPokemonVariant(p.name));
+
+        // Agregar formas regionales
+        const formsToAdd = await addRegionalFormsForGames(
+          pokemonList.map((p: any) => ({ id: p.id, name: p.name, generation: p.generation }))
+        );
+
+        // Combinar lista base con formas regionales
+        const regionalForms = formsToAdd.map((form: any) => ({
+          id: form.id,
+          originalId: form.id,
+          name: form.name,
+          imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${form.id}.png`,
+          generation: form.generation,
+          index: form.id - 1,
+        }));
+
+        const allPokemon = [...pokemonList, ...regionalForms]
           .filter((p: any) => {
-            // Filtrar variantes no deseadas
-            if (!isDesiredPokemonVariant(p.name)) {
-              return false;
-            }
             // Filtrar por generación
             return mode === "all" 
               ? p.generation <= 9
@@ -184,7 +199,7 @@ export default function SilhouetteQuizGame({
             types: [], // No cargar tipos al inicio
           }));
 
-        setAllPokemon(pokemonList);
+        setAllPokemon(allPokemon);
       } catch (error) {
         console.error("Error loading pokemon list:", error);
       }
@@ -314,7 +329,7 @@ export default function SilhouetteQuizGame({
 
     const feedback = isCorrect
       ? "¡Correcto!"
-      : `Incorrecto. Era ${gameState.currentPokemon.name}`;
+      : `Incorrecto. Era ${getPokemonName(gameState.currentPokemon.name)}`;
 
     // Si es correcto, agregar a pokémon capturados
     if (isCorrect) {
@@ -624,7 +639,7 @@ export default function SilhouetteQuizGame({
                         : "text-slate-300 hover:bg-slate-700"
                     }`}
                   >
-                    <span className="capitalize">{pokemon.name}</span>
+                    <span className="capitalize">{getPokemonName(pokemon.name)}</span>
                   </button>
                 ))}
               </div>

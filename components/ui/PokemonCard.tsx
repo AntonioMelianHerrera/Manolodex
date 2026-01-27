@@ -1,4 +1,5 @@
 import { PokemonListItem } from "@/types/pokemon";
+import { getPokemonName, cleanPokemonName } from "@/lib/translations";
 
 export default function PokemonCard({
   pokemon,
@@ -7,6 +8,14 @@ export default function PokemonCard({
   pokemon: PokemonListItem;
   onClick?: () => void;
 }) {
+  const displayName = getPokemonName(pokemon.name);
+  const isMegaForm = pokemon.name.includes('-mega');
+  
+  // Para mega formas, agregar prefijo "Mega"
+  const finalDisplayName = isMegaForm 
+    ? `Mega ${displayName}`
+    : displayName;
+
   return (
     <div
       className="bg-slate-800 rounded-xl shadow p-3 text-center hover:bg-slate-700 transition cursor-pointer"
@@ -19,7 +28,7 @@ export default function PokemonCard({
 />
       <p className="text-xs text-slate-400">#{pokemon.id}</p>
       <h3 className="capitalize text-sm font-medium text-white">
-        {pokemon.name}
+        {finalDisplayName}
       </h3>
     </div>
   );

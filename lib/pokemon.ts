@@ -100,12 +100,149 @@ export async function getPokemonList(): Promise<PokemonListItem[]> {
       }
     );
 
+    // Retornar la lista base sin esperar a las formas regionales
+    // Las formas regionales se cargarán en background
+    addRegionalFormsToListAsync(pokemonList).catch(error => 
+      console.error("Error adding regional forms in background:", error)
+    );
+    
     return pokemonList;
   } catch (error) {
     console.error("Error fetching Pokemon list:", error);
     throw new Error(
       "No se pudo cargar la lista de Pokémon. Por favor, intenta de nuevo."
     );
+  }
+}
+
+// Función asíncrona que agrega formas regionales sin bloquear
+async function addRegionalFormsToListAsync(pokemonList: PokemonListItem[]): Promise<void> {
+  // Esta función se ejecuta en background y actualiza el cache si es necesario
+  try {
+    const regionalForms: PokemonListItem[] = [];
+    let processed = 0;
+    const total = Math.min(pokemonList.length, 100); // Solo procesar primeros 100 para evitar sobrecarga
+
+    for (let i = 0; i < total; i++) {
+      const pokemon = pokemonList[i];
+      try {
+        const speciesRes = await fetchWithRetry(
+          `https://pokeapi.co/api/v2/pokemon-species/${pokemon.id}/`
+        );
+        const speciesData = await speciesRes.json();
+
+        if (speciesData.varieties && speciesData.varieties.length > 1) {
+          for (const variety of speciesData.varieties) {
+            const varietyName = variety.pokemon.name;
+            const isRegional = varietyName.includes('-alola') || 
+                              varietyName.includes('-galar') || 
+                              varietyName.includes('-hisui') || 
+                              varietyName.includes('-paldea');
+            
+            if (isRegional && !variety.is_main_variety) {
+              try {
+                const varietyRes = await fetchWithRetry(variety.pokemon.url);
+                const varietyData = await varietyRes.json();
+                
+                let regionalGeneration = pokemon.generation;
+                if (varietyName.includes('-alola')) {
+                  regionalGeneration = 7;
+                } else if (varietyName.includes('-galar')) {
+                  regionalGeneration = 8;
+                } else if (varietyName.includes('-hisui')) {
+                  regionalGeneration = 8;
+                } else if (varietyName.includes('-paldea')) {
+                  regionalGeneration = 9;
+                }
+
+                regionalForms.push({
+                  id: pokemon.id,
+                  name: varietyName,
+                  url: variety.pokemon.url,
+                  types: varietyData.types.map((t: any) => t.type.name),
+                  generation: regionalGeneration,
+                });
+              } catch (error) {
+                console.warn(`Error fetching regional form ${varietyName}:`, error);
+              }
+            }
+          }
+        }
+        processed++;
+      } catch (error) {
+        console.warn(`Error fetching species for ${pokemon.name}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error("Error adding regional forms in background:", error);
+  }
+}
+
+// Función antigua que ahora se usa solo para minijuegos
+async function addRegionalFormsToList(pokemonList: PokemonListItem[]): Promise<PokemonListItem[]> {
+  try {
+    const regionalFormsToAdd: PokemonListItem[] = [];
+
+    // Procesar Pokémon para encontrar sus formas regionales
+    for (const pokemon of pokemonList) {
+      try {
+        const speciesRes = await fetchWithRetry(
+          `https://pokeapi.co/api/v2/pokemon-species/${pokemon.id}/`
+        );
+        const speciesData = await speciesRes.json();
+
+        // Obtener variedades (formas alternativas)
+        if (speciesData.varieties && speciesData.varieties.length > 1) {
+          for (const variety of speciesData.varieties) {
+            // Solo procesar formas regionales
+            const varietyName = variety.pokemon.name;
+            const isRegional = varietyName.includes('-alola') || 
+                              varietyName.includes('-galar') || 
+                              varietyName.includes('-hisui') || 
+                              varietyName.includes('-paldea');
+            
+            if (isRegional && !variety.is_main_variety) {
+              try {
+                const varietyRes = await fetchWithRetry(variety.pokemon.url);
+                const varietyData = await varietyRes.json();
+                
+                // Determinar generación basada en la forma regional
+                let regionalGeneration = pokemon.generation;
+                if (varietyName.includes('-alola')) {
+                  regionalGeneration = 7;
+                } else if (varietyName.includes('-galar')) {
+                  regionalGeneration = 8;
+                } else if (varietyName.includes('-hisui')) {
+                  regionalGeneration = 8;
+                } else if (varietyName.includes('-paldea')) {
+                  regionalGeneration = 9;
+                }
+
+                regionalFormsToAdd.push({
+                  id: pokemon.id,
+                  name: varietyName,
+                  url: variety.pokemon.url,
+                  types: varietyData.types.map((t: any) => t.type.name),
+                  generation: regionalGeneration,
+                });
+              } catch (error) {
+                console.warn(`Error fetching regional form ${varietyName}:`, error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // Si falla obtener species, simplemente continuar
+        console.warn(`Error fetching species for ${pokemon.name}:`, error);
+      }
+    }
+
+    // Combinar lista original con formas regionales
+    return [...pokemonList, ...regionalFormsToAdd];
+  } catch (error) {
+    console.error("Error adding regional forms:", error);
+    // Si falla, retornar solo la lista original
+    return pokemonList;
   }
 }
 
@@ -160,4 +297,66 @@ export function isDesiredPokemonVariant(name: string): boolean {
   }
   
   return true;
+}
+
+// Función para agregar formas regionales a una lista de Pokémon para minijuegos
+// Recibe lista de Pokémon y agrega sus formas regionales con las generaciones correctas
+export async function addRegionalFormsForGames(
+  pokemonList: Array<{ id: number; name: string; generation: number }>
+): Promise<Array<{ id: number; name: string; generation: number }>> {
+  try {
+    const regionalFormsToAdd: Array<{ id: number; name: string; generation: number }> = [];
+
+    // Procesar Pokémon para encontrar sus formas regionales
+    for (const pokemon of pokemonList) {
+      try {
+        const speciesRes = await fetchWithRetry(
+          `https://pokeapi.co/api/v2/pokemon-species/${pokemon.id}/`
+        );
+        const speciesData = await speciesRes.json();
+
+        // Obtener variedades (formas alternativas)
+        if (speciesData.varieties && speciesData.varieties.length > 1) {
+          for (const variety of speciesData.varieties) {
+            // Solo procesar formas regionales
+            const varietyName = variety.pokemon.name;
+            const isRegional = varietyName.includes('-alola') || 
+                              varietyName.includes('-galar') || 
+                              varietyName.includes('-hisui') || 
+                              varietyName.includes('-paldea');
+            
+            if (isRegional && !variety.is_main_variety) {
+              // Determinar generación basada en la forma regional
+              let regionalGeneration = pokemon.generation;
+              if (varietyName.includes('-alola')) {
+                regionalGeneration = 7;
+              } else if (varietyName.includes('-galar')) {
+                regionalGeneration = 8;
+              } else if (varietyName.includes('-hisui')) {
+                regionalGeneration = 8;
+              } else if (varietyName.includes('-paldea')) {
+                regionalGeneration = 9;
+              }
+
+              regionalFormsToAdd.push({
+                id: pokemon.id,
+                name: varietyName,
+                generation: regionalGeneration,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        // Si falla obtener species, simplemente continuar
+        console.warn(`Error fetching species for ${pokemon.name}:`, error);
+      }
+    }
+
+    // Combinar lista original con formas regionales
+    return [...pokemonList, ...regionalFormsToAdd];
+  } catch (error) {
+    console.error("Error adding regional forms for games:", error);
+    // Si falla, retornar solo la lista original
+    return pokemonList;
+  }
 }

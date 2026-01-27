@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PokemonListItem } from "@/types/pokemon";
 import { TYPE_COLORS } from "@/types/colors";
-import { TYPES_TRANSLATIONS, getAbilityTranslation, getItemTranslation } from "@/lib/translations";
+import { TYPES_TRANSLATIONS, getAbilityTranslation, getItemTranslation, getPokemonName } from "@/lib/translations";
+import { getAbilityName, getAbilityDescription } from "@/lib/abilities";
+import { getFormattedFormName } from "@/lib/formTranslations";
 
 type Props = {
   pokemon: PokemonListItem | null;
@@ -25,6 +27,14 @@ type EvolutionNode = {
   types: string[];
   method?: EvolutionMethod;
   evolvesTo: EvolutionNode[];
+  regionalForms?: {
+    id: number;
+    name: string;
+    types: string[];
+    varietyUrl?: string;
+    image?: string;
+    evolvesTo?: EvolutionNode[]; // Solo si la forma regional tiene evoluciones propias
+  }[];
 };
 
 // Función para asignar color a cada stat individual
@@ -123,8 +133,15 @@ type AlternativeForm = {
   types: string[];
   isMega: boolean;
   isGigantamax: boolean;
+  isAlola?: boolean;
+  isGalar?: boolean;
+  isHisui?: boolean;
+  isPaldea?: boolean;
   image?: string;
   varietyUrl?: string;
+  hasStatsChange?: boolean;
+  hasTypeChange?: boolean;
+  hasAbilityChange?: boolean;
 };
 
 export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }: Props) {
@@ -136,6 +153,124 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
   const [isPlayingCry, setIsPlayingCry] = useState(false);
   const [pokemonImage, setPokemonImage] = useState<string>('');
   const [pokemonGenus, setPokemonGenus] = useState<string>('');
+  const [selectedRegionalForm, setSelectedRegionalForm] = useState<AlternativeForm | null>(null);
+  const [selectedFormName, setSelectedFormName] = useState<string>('');
+
+  // Deshabilitar scroll cuando el modal está abierto
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [open]);
+
+  // Función para actualizar los datos cuando se selecciona una forma regional
+  const loadFormDetails = async (form: AlternativeForm) => {
+    try {
+      if (!form.varietyUrl) return;
+      
+      const res = await fetch(form.varietyUrl);
+      const data = await res.json();
+      
+      // Actualizar stats
+      setStats(data.stats.map((s: any) => ({ name: s.stat.name, value: s.base_stat })));
+      
+      // Actualizar imagen - obtener directamente de los datos de la API
+      const imageUrl = data.sprites?.other?.['official-artwork']?.front_default || 
+                      data.sprites?.front_default ||
+                      data.sprites?.front_default;
+      
+      if (imageUrl) {
+        setPokemonImage(imageUrl);
+      }
+      
+      // Actualizar habilidades
+      const abilitiesList = data.abilities.map((a: any) => ({
+        name: a.ability.name,
+        isHidden: a.is_hidden,
+      }));
+      setAbilities(abilitiesList);
+      
+      // Actualizar genus (especie) y descripciones de pokédex para la forma
+      const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${form.id}`);
+      const species = await speciesRes.json();
+      
+      // Obtener el genus (especie) en español o inglés
+      if (species.genera && species.genera.length > 0) {
+        // Buscar en español primero
+        let genus = species.genera.find((g: any) => g.language.name === "es" || g.language.iso639 === "es")?.genus;
+        // Si no hay español, usar inglés
+        if (!genus) {
+          genus = species.genera.find((g: any) => g.language.name === "en" || g.language.iso639 === "en")?.genus;
+        }
+        if (genus) {
+          setPokemonGenus(genus);
+        }
+      }
+      
+      const entries: { version: string; text: string; lang: string }[] = [];
+      if (species.flavor_text_entries && species.flavor_text_entries.length > 0) {
+        // Buscar en español primero
+        const spanishEntries: { version: string; text: string; lang: string }[] = [];
+        for (const entry of species.flavor_text_entries) {
+          const isSpanish = entry.language.name === "es" || 
+                          entry.language.name === "es-es" ||
+                          entry.language.iso639 === "es";
+          
+          if (isSpanish) {
+            const versionName = entry.version.name
+              .split("-")
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ");
+            const text = entry.flavor_text.replace(/\n|\f|\r/g, " ").trim();
+            
+            if (!spanishEntries.find(e => e.version === versionName && e.text === text)) {
+              spanishEntries.push({ version: versionName, text, lang: "es" });
+            }
+          }
+        }
+        
+        if (spanishEntries.length > 0) {
+          entries.push(...spanishEntries);
+        } else {
+          // Si no hay en español, agregar en inglés
+          const englishEntries: { version: string; text: string; lang: string }[] = [];
+          for (const entry of species.flavor_text_entries) {
+            const isEnglish = entry.language.name === "en" || 
+                            entry.language.iso639 === "en";
+            
+            if (isEnglish) {
+              const versionName = entry.version.name
+                .split("-")
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ");
+              const text = entry.flavor_text.replace(/\n|\f|\r/g, " ").trim();
+              
+              if (!englishEntries.find(e => e.version === versionName && e.text === text)) {
+                englishEntries.push({ version: versionName, text, lang: "en" });
+              }
+            }
+          }
+          
+          if (englishEntries.length > 0) {
+            entries.push(...englishEntries);
+          }
+        }
+      }
+      
+      setPokedexEntries(entries);
+      setSelectedRegionalForm(form);
+      // Establece el nombre de la forma para mostrar correctamente
+      setSelectedFormName(form.formName);
+    } catch (error) {
+      console.error("Error loading form details:", error);
+    }
+  };
 
   // Deshabilitar scroll cuando el modal está abierto
   useEffect(() => {
@@ -155,6 +290,10 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
 
     async function fetchPokemonDetails() {
       try {
+        // Reset forma regional seleccionada cuando cambiamos de pokémon
+        setSelectedRegionalForm(null);
+        setSelectedFormName('');
+        
         // Si es una forma especial (mega/gigantamax), usar el nombre completo, si no usar el ID
         const pokemonIdentifier = pokemon && (pokemon.name.includes('mega') || pokemon.name.includes('gigantamax') || pokemon.name.includes('gmax'))
           ? pokemon.name 
@@ -326,7 +465,6 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
         }
 
         const evolutionTree = await buildEvolutionTree(evoData.chain);
-        setEvolutionChain(evolutionTree);
 
         // Helper function to collect all Pokémon from evolution tree
         function getAllPokemonInEvolutionChain(node: EvolutionNode): EvolutionNode[] {
@@ -353,37 +491,81 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
               const speciesData = await speciesRes.json();
               console.log(`Species data for ${speciesData.name}:`, { varieties: speciesData.varieties?.length });
               
+              // Get base Pokémon data for comparison
+              const basePokemonRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonInChain.id}/`);
+              const basePokemonData = basePokemonRes.ok ? await basePokemonRes.json() : null;
+              const baseTypes = basePokemonData?.types?.map((t: any) => t.type.name) || [];
+              const baseAbilities = basePokemonData?.abilities?.map((a: any) => a.ability.name) || [];
+              const baseStats = basePokemonData?.stats || [];
+              
               // Get varieties which include different forms
-              if (speciesData.varieties && speciesData.varieties.length > 0) {
+              if (speciesData.varieties && speciesData.varieties.length > 1) {
                 for (const variety of speciesData.varieties) {
                   try {
-                    const varietyUrl = variety.pokemon.url;
-                    const varietyRes = await fetch(varietyUrl);
-                    if (!varietyRes.ok) continue;
-                    
-                    const varietyData = await varietyRes.json();
-                    const varietyName = varietyData.name || '';
-                    console.log(`Checking variety: ${varietyName}`);
-                    
-                    // Check if it's a mega evolution or gigantamax (mega debe tener guion: -mega, -mega-x, -mega-y)
-                    const isMega = varietyName.includes('-mega');
-                    const isGigantamax = varietyName.includes('gigantamax') || varietyName.includes('gmax');
-                    
-                    if (isMega || isGigantamax) {
-                      const types = varietyData.types?.map((t: any) => t.type.name) || [];
-                      // Get official artwork image first, fallback to default
-                      const image = varietyData.sprites?.other?.['official-artwork']?.front_default || varietyData.sprites?.front_default;
-                      console.log(`Found special form: ${varietyName}, image: ${image}`);
-                      alternativeFormsList.push({
-                        id: pokemonInChain.id,
-                        name: pokemonInChain.name,
-                        formName: varietyName,
-                        types,
-                        isMega,
-                        isGigantamax,
-                        image,
-                        varietyUrl: varietyUrl
-                      });
+                    // Skip the default/base form (usually the first one)
+                    if (!variety.is_main_variety) {
+                      const varietyUrl = variety.pokemon.url;
+                      const varietyRes = await fetch(varietyUrl);
+                      if (!varietyRes.ok) continue;
+                      
+                      const varietyData = await varietyRes.json();
+                      const varietyName = varietyData.name || '';
+                      
+                      // FILTRADO DE FORMAS A EXCLUIR
+                      // Eliminar formas totem (dominantes de Alola)
+                      if (varietyName.includes('-totem')) {
+                        continue;
+                      }
+                      
+                      // Eliminar formas starter y partner de Pikachu y Eevee
+                      if (varietyName.includes('-starter') || varietyName.includes('-partner')) {
+                        continue;
+                      }
+                      
+                      // Detect form type
+                      const isMega = varietyName.includes('-mega');
+                      const isGigantamax = varietyName.includes('gigantamax') || varietyName.includes('gmax');
+                      const isAlola = varietyName.includes('-alola');
+                      const isGalar = varietyName.includes('-galar');
+                      const isHisui = varietyName.includes('-hisui');
+                      const isPaldea = varietyName.includes('-paldea');
+                      // Las formas con "cap" son formas especiales, no regionales
+                      const isRegional = (isAlola || isGalar || isHisui || isPaldea) && !varietyName.includes('-cap');
+                      
+                      // Check if form has meaningful changes (types, abilities, or stats)
+                      const varietyTypes = varietyData.types?.map((t: any) => t.type.name) || [];
+                      const varietyAbilities = varietyData.abilities?.map((a: any) => a.ability.name) || [];
+                      const varietyStats = varietyData.stats || [];
+                      
+                      const hasTypeChange = JSON.stringify(baseTypes.sort()) !== JSON.stringify(varietyTypes.sort());
+                      const hasAbilityChange = !varietyAbilities.every((a: string) => baseAbilities.includes(a));
+                      const hasStatsChange = JSON.stringify(baseStats) !== JSON.stringify(varietyStats);
+                      
+                      // Include form if it has any changes OR if it's a special form type (mega, gmax, regional)
+                      // Regional forms are always included because they will be integrated into evolution chains
+                      const includeForm = hasTypeChange || hasAbilityChange || hasStatsChange || isMega || isGigantamax || isRegional;
+                      
+                      if (includeForm) {
+                        const image = varietyData.sprites?.other?.['official-artwork']?.front_default || varietyData.sprites?.front_default;
+                        console.log(`Found alternative form: ${varietyName}, changes: {types: ${hasTypeChange}, abilities: ${hasAbilityChange}, stats: ${hasStatsChange}}, isRegional: ${isRegional}`);
+                        alternativeFormsList.push({
+                          id: pokemonInChain.id,
+                          name: pokemonInChain.name,
+                          formName: varietyName,
+                          types: varietyTypes,
+                          isMega,
+                          isGigantamax,
+                          isAlola,
+                          isGalar,
+                          isHisui,
+                          isPaldea,
+                          image,
+                          varietyUrl: varietyUrl,
+                          hasTypeChange,
+                          hasAbilityChange,
+                          hasStatsChange
+                        });
+                      }
                     }
                   } catch (error) {
                     console.error(`Error fetching variety ${variety.pokemon.name}:`, error);
@@ -396,7 +578,90 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
           }
 
           console.log('Alternative forms found:', alternativeFormsList);
-          setAlternativeForms(alternativeFormsList);
+          // Separar formas regionales de otras formas especiales (mega, gmax, etc)
+          const regionalForms = alternativeFormsList.filter(f => f.isAlola || f.isGalar || f.isHisui || f.isPaldea);
+          const specialForms = alternativeFormsList.filter(f => !f.isAlola && !f.isGalar && !f.isHisui && !f.isPaldea);
+          
+          setAlternativeForms(specialForms);
+          
+          // Función para obtener todos los nodos de la cadena con su nombre
+          function getAllNodesWithName(node: EvolutionNode): Array<{node: EvolutionNode, name: string}> {
+            const all: Array<{node: EvolutionNode, name: string}> = [];
+            all.push({node, name: node.name});
+            for (const evo of node.evolvesTo) {
+              all.push(...getAllNodesWithName(evo));
+            }
+            return all;
+          }
+          
+          // Función para agregar formas regionales debajo de sus contrapartes
+          const addRegionalForms = (node: EvolutionNode, allRegionalForms: AlternativeForm[]) => {
+            // Encontrar formas regionales para este pokémon
+            const formsForThisPokemon = allRegionalForms.filter(f => f.id === node.id);
+            
+            if (formsForThisPokemon.length > 0) {
+              node.regionalForms = formsForThisPokemon.map(form => ({
+                id: form.id,
+                name: form.formName,
+                types: form.types,
+                varietyUrl: form.varietyUrl,
+                image: form.image,
+                // Las formas regionales sin evoluciones propias no tienen evolvesTo
+              }));
+            }
+            
+            // Recursivamente procesar evoluciones
+            for (const evo of node.evolvesTo) {
+              addRegionalForms(evo, allRegionalForms);
+            }
+          };
+          
+          // Agregar formas regionales al árbol
+          addRegionalForms(evolutionTree, regionalForms);
+          
+          // Construir cadenas de evolución para formas regionales
+          // Para cada forma regional, buscar su evolución en la cadena completa por nombre
+          const buildRegionalEvolutionChains = (node: EvolutionNode) => {
+            if (node.regionalForms) {
+              for (const regionalForm of node.regionalForms) {
+                // Buscar la forma regional específica en la cadena de evolución
+                // Por ejemplo, si buscamos "meowth-galar", debemos encontrar su evolución "perrserker"
+                
+                const findRegionalEvolutionChain = (searchNode: EvolutionNode, targetFormName: string): EvolutionNode[] => {
+                  // Si este nodo coincide con la forma regional que buscamos
+                  if (searchNode.name === targetFormName) {
+                    // Devolver sus evoluciones
+                    return searchNode.evolvesTo;
+                  }
+                  
+                  // Buscar recursivamente en las evoluciones
+                  for (const evo of searchNode.evolvesTo) {
+                    const found = findRegionalEvolutionChain(evo, targetFormName);
+                    if (found.length > 0) {
+                      return found;
+                    }
+                  }
+                  
+                  return [];
+                };
+                
+                // Buscar las evoluciones de esta forma regional
+                const regionalEvolutions = findRegionalEvolutionChain(evolutionTree, regionalForm.name);
+                if (regionalEvolutions.length > 0) {
+                  regionalForm.evolvesTo = regionalEvolutions;
+                }
+              }
+            }
+            
+            // Recursivamente procesar evoluciones
+            for (const evo of node.evolvesTo) {
+              buildRegionalEvolutionChains(evo);
+            }
+          };
+          
+          buildRegionalEvolutionChains(evolutionTree);
+          
+          setEvolutionChain(evolutionTree);
         } catch (error) {
           console.error('Error fetching alternative forms:', error);
         }
@@ -468,10 +733,10 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
       }}
     >
       <div className="bg-slate-900 rounded-lg p-6 w-[95vw] max-w-[95vw] my-2 relative">
-        {/* Botón cerrar - Fixed en la esquina */}
+        {/* Botón cerrar - Dentro del modal */}
         <button
           onClick={onClose}
-          className="fixed top-6 right-6 z-50 w-12 h-12 flex items-center justify-center text-white text-5xl font-bold hover:text-red-500 hover:scale-110 transition-all duration-200 cursor-pointer bg-slate-900 bg-opacity-80 hover:bg-opacity-100 rounded-full border-2 border-slate-700 hover:border-red-500 hover:shadow-lg hover:shadow-red-500/50"
+          className="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center text-white text-4xl font-bold hover:text-red-500 hover:scale-110 transition-all duration-200 cursor-pointer"
           title="Cerrar"
         >
           ×
@@ -493,7 +758,7 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
 
             {/* Tipos debajo de la imagen */}
             <div className="flex gap-2 mt-2">
-              {pokemon.types?.map((type) => (
+              {(selectedRegionalForm?.types || pokemon.types)?.map((type) => (
                 <span
                   key={type}
                   className="px-2 py-1 rounded text-white text-sm font-semibold"
@@ -510,7 +775,7 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
                 <p className="text-slate-300 text-xs font-semibold mb-2">Habilidades:</p>
                 <div className="flex flex-wrap gap-2">
                   {abilities.map((ability) => {
-                    const translatedName = getAbilityTranslation(ability.name);
+                    const translatedName = getAbilityName(ability.name);
                     return (
                       <Link
                         key={ability.name}
@@ -532,7 +797,9 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
 
             {/* Nombre debajo de tipos */}
             <h2 className="capitalize text-2xl font-bold text-white mt-2">
-              {pokemon.name}
+              {selectedFormName 
+                ? getPokemonName(selectedFormName)
+                : getPokemonName(pokemon.name)}
             </h2>
             {/* Genus/Especie */}
             {pokemonGenus && (
@@ -604,7 +871,117 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
               <EvolutionTreeComponent 
                 node={evolutionChain}
                 onSelectPokemon={onSelectPokemon}
+                onSelectRegionalForm={loadFormDetails}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Formas regionales para Pokémon sin evoluciones */}
+        {evolutionChain && evolutionChain.evolvesTo.length === 0 && evolutionChain.regionalForms && evolutionChain.regionalForms.length > 0 && (
+          <div className="mt-6 border-t border-slate-700 pt-6">
+            <p className="text-slate-300 text-sm mb-4">Formas:</p>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Forma base */}
+              <div
+                className="bg-slate-700 hover:bg-slate-600 transition rounded-lg p-3 cursor-pointer border-2 border-slate-600 hover:border-blue-500 flex flex-col items-center"
+                onClick={() => {
+                  // Cargar la forma base del Pokémon
+                  if (pokemon) {
+                    onSelectPokemon(pokemon);
+                  }
+                }}
+              >
+                <img
+                  src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon?.id}.png`}
+                  alt={pokemon?.name}
+                  className="w-16 h-16 object-contain mb-2"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = 'https://via.placeholder.com/64x64?text=?';
+                  }}
+                />
+                <p className="text-xs font-semibold text-white capitalize text-center">
+                  {getPokemonName(pokemon?.name || '')}
+                </p>
+                <p className="text-xs text-blue-300">Forma Base</p>
+              </div>
+
+              {/* Formas regionales */}
+              {evolutionChain.regionalForms.map((form, idx) => {
+                const formType = form.name.includes('-alola') ? 'Alola' : 
+                               form.name.includes('-galar') ? 'Galar' :
+                               form.name.includes('-hisui') ? 'Hisui' :
+                               form.name.includes('-paldea') ? 'Paldea' : '';
+                
+                // Colores diferenciados por tipo de forma regional
+                const regionalColor = formType === 'Alola' ? 'bg-amber-700' :
+                                    formType === 'Galar' ? 'bg-indigo-700' :
+                                    formType === 'Hisui' ? 'bg-purple-700' :
+                                    formType === 'Paldea' ? 'bg-rose-700' : 'bg-amber-700';
+                const borderColor = formType === 'Alola' ? 'border-amber-500' :
+                                   formType === 'Galar' ? 'border-indigo-500' :
+                                   formType === 'Hisui' ? 'border-purple-500' :
+                                   formType === 'Paldea' ? 'border-rose-500' : 'border-amber-500';
+                const textColor = formType === 'Alola' ? 'text-amber-300' :
+                                 formType === 'Galar' ? 'text-indigo-300' :
+                                 formType === 'Hisui' ? 'text-purple-300' :
+                                 formType === 'Paldea' ? 'text-rose-300' : 'text-amber-300';
+                
+                return (
+                  <div
+                    key={idx}
+                    className={`${regionalColor} bg-opacity-60 hover:bg-opacity-80 transition rounded-lg p-3 cursor-pointer border-2 ${borderColor} flex flex-col items-center`}
+                    onClick={() => {
+                      const fullForm: AlternativeForm = {
+                        id: form.id,
+                        name: form.name,
+                        formName: form.name,
+                        types: form.types,
+                        isMega: false,
+                        isGigantamax: false,
+                        isAlola: form.name.includes('-alola'),
+                        isGalar: form.name.includes('-galar'),
+                        isHisui: form.name.includes('-hisui'),
+                        isPaldea: form.name.includes('-paldea'),
+                        image: form.image,
+                        varietyUrl: form.varietyUrl,
+                      };
+                      loadFormDetails(fullForm);
+                    }}
+                  >
+                    {form.image ? (
+                      <img
+                        src={form.image}
+                        alt={form.name}
+                        className="w-16 h-16 object-contain mb-2"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-slate-600 rounded flex items-center justify-center mb-2">
+                        <span className="text-slate-400 text-xs">Sin imagen</span>
+                      </div>
+                    )}
+                    <p className="text-xs font-semibold text-white capitalize text-center">
+                      {getPokemonName(form.name)}
+                    </p>
+                    {formType && (
+                      <p className={`text-xs font-bold ${textColor}`}>
+                        {formType}
+                      </p>
+                    )}
+                    <div className="flex gap-1 flex-wrap justify-center mt-1">
+                      {form.types.map((type) => (
+                        <span
+                          key={type}
+                          className="text-white text-xs px-1 py-0.5 rounded font-semibold"
+                          style={{ backgroundColor: (TYPE_COLORS as any)[type] || "#666" }}
+                        >
+                          {(TYPES_TRANSLATIONS as any)[type] || type}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -652,18 +1029,40 @@ export default function PokemonModal({ pokemon, open, onClose, onSelectPokemon }
                   
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold capitalize text-sm">{form.name}</h4>
-                    {form.isMega && (
-                      <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded font-bold">
-                        MEGA
-                      </span>
-                    )}
-                    {form.isGigantamax && (
-                      <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded font-bold">
-                        GMAX
-                      </span>
-                    )}
+                    <div className="flex gap-1">
+                      {form.isMega && (
+                        <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded font-bold">
+                          MEGA
+                        </span>
+                      )}
+                      {form.isGigantamax && (
+                        <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded font-bold">
+                          GMAX
+                        </span>
+                      )}
+                      {form.isAlola && (
+                        <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded font-bold">
+                          ALOLA
+                        </span>
+                      )}
+                      {form.isGalar && (
+                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded font-bold">
+                          GALAR
+                        </span>
+                      )}
+                      {form.isHisui && (
+                        <span className="bg-amber-600 text-white text-xs px-2 py-1 rounded font-bold">
+                          HISUI
+                        </span>
+                      )}
+                      {form.isPaldea && (
+                        <span className="bg-violet-500 text-white text-xs px-2 py-1 rounded font-bold">
+                          PALDEA
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 mb-2 capitalize">{form.formName}</p>
+                  <p className="text-xs text-slate-400 mb-2 capitalize">{getFormattedFormName(form.name, form.formName.replace(`${form.name}-`, ''))}</p>
                   <div className="flex flex-wrap gap-1">
                     {form.types.map((type) => (
                       <span
@@ -708,10 +1107,12 @@ function getLinearEvolutionChain(node: EvolutionNode): EvolutionNode[] {
 // Componente para una evolución individual
 function PokemonEvolutionCard({ 
   pokemon,
-  onSelectPokemon 
+  onSelectPokemon,
+  onSelectRegionalForm
 }: { 
   pokemon: EvolutionNode;
   onSelectPokemon: (pokemon: PokemonListItem) => void;
+  onSelectRegionalForm?: (form: AlternativeForm) => void;
 }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageSrc, setImageSrc] = useState(
@@ -739,42 +1140,150 @@ function PokemonEvolutionCard({
   };
 
   return (
-    <div
-      className="bg-slate-700 p-3 rounded-lg flex flex-col items-center cursor-pointer hover:bg-slate-600 transition-colors flex-shrink-0"
-      onClick={() =>
-        onSelectPokemon({
-          id: pokemon.id,
-          name: pokemon.name,
-          url: `https://pokeapi.co/api/v2/pokemon/${pokemon.id}`,
-          types: pokemon.types,
-        })
-      }
-    >
-      {imageSrc ? (
-        <img
-          src={imageSrc}
-          alt={pokemon.name}
-          className="w-24 h-24 object-contain"
-          onLoad={() => setImageLoaded(true)}
-          onError={handleImageError}
-        />
-      ) : (
-        <div className="w-24 h-24 bg-slate-600 rounded flex items-center justify-center">
-          <span className="text-slate-400 text-xs">Sin imagen</span>
+    <div className="flex flex-col items-center">
+      {/* Pokémon base */}
+      <div
+        className="bg-slate-700 p-3 rounded-lg flex flex-col items-center cursor-pointer hover:bg-slate-600 transition-colors flex-shrink-0"
+        onClick={() =>
+          onSelectPokemon({
+            id: pokemon.id,
+            name: pokemon.name,
+            url: `https://pokeapi.co/api/v2/pokemon/${pokemon.id}`,
+            types: pokemon.types,
+          })
+        }
+      >
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={pokemon.name}
+            className="w-24 h-24 object-contain"
+            onLoad={() => setImageLoaded(true)}
+            onError={handleImageError}
+          />
+        ) : (
+          <div className="w-24 h-24 bg-slate-600 rounded flex items-center justify-center">
+            <span className="text-slate-400 text-xs">Sin imagen</span>
+          </div>
+        )}
+        <span className="capitalize text-white text-sm font-semibold mt-1">{getPokemonName(pokemon.name)}</span>
+        <div className="flex gap-1 mt-2">
+          {pokemon.types.map((type) => (
+            <span
+              key={type}
+              className="px-2 py-1 rounded text-xs text-white font-semibold"
+              style={{ backgroundColor: (TYPE_COLORS as any)[type] || "#6B7280" }}
+            >
+              {(TYPES_TRANSLATIONS as any)[type] || type}
+            </span>
+          ))}
+        </div>
+      </div>
+      
+      {/* Formas regionales debajo del pokémon base */}
+      {pokemon.regionalForms && pokemon.regionalForms.length > 0 && onSelectRegionalForm && (
+        <div className="mt-3 pt-3 border-t border-slate-600 w-full flex flex-col gap-4">
+          {pokemon.regionalForms.map((form, idx) => {
+            const formType = form.name.includes('-alola') ? 'Alola' : 
+                           form.name.includes('-galar') ? 'Galar' :
+                           form.name.includes('-hisui') ? 'Hisui' :
+                           form.name.includes('-paldea') ? 'Paldea' : '';
+            
+            // Colores diferenciados por tipo de forma regional
+            const regionalColor = formType === 'Alola' ? 'bg-amber-700' :
+                                formType === 'Galar' ? 'bg-indigo-700' :
+                                formType === 'Hisui' ? 'bg-purple-700' :
+                                formType === 'Paldea' ? 'bg-rose-700' : 'bg-amber-700';
+            const borderColor = formType === 'Alola' ? 'border-amber-500' :
+                               formType === 'Galar' ? 'border-indigo-500' :
+                               formType === 'Hisui' ? 'border-purple-500' :
+                               formType === 'Paldea' ? 'border-rose-500' : 'border-amber-500';
+            const textColor = formType === 'Alola' ? 'text-amber-300' :
+                             formType === 'Galar' ? 'text-indigo-300' :
+                             formType === 'Hisui' ? 'text-purple-300' :
+                             formType === 'Paldea' ? 'text-rose-300' : 'text-amber-300';
+            const arrowColor = formType === 'Alola' ? 'text-amber-500' :
+                              formType === 'Galar' ? 'text-indigo-500' :
+                              formType === 'Hisui' ? 'text-purple-500' :
+                              formType === 'Paldea' ? 'text-rose-500' : 'text-amber-500';
+            const lineColor = formType === 'Alola' ? 'border-amber-600' :
+                             formType === 'Galar' ? 'border-indigo-600' :
+                             formType === 'Hisui' ? 'border-purple-600' :
+                             formType === 'Paldea' ? 'border-rose-600' : 'border-amber-600';
+            
+            return (
+              <div key={idx} className={`flex flex-col items-start gap-2 p-3 rounded-lg bg-slate-800 border-l-4 ${lineColor}`}>
+                {/* Tarjeta de forma regional */}
+                <div
+                  className={`${regionalColor} bg-opacity-60 p-2 rounded cursor-pointer hover:bg-opacity-80 transition border ${borderColor} flex flex-col items-center w-full`}
+                  onClick={() => {
+                    const fullForm: AlternativeForm = {
+                      id: form.id,
+                      name: form.name,
+                      formName: form.name,
+                      types: form.types,
+                      isMega: false,
+                      isGigantamax: false,
+                      isAlola: form.name.includes('-alola'),
+                      isGalar: form.name.includes('-galar'),
+                      isHisui: form.name.includes('-hisui'),
+                      isPaldea: form.name.includes('-paldea'),
+                      image: form.image,
+                      varietyUrl: form.varietyUrl,
+                    };
+                    onSelectRegionalForm(fullForm);
+                  }}
+                >
+                  {form.image ? (
+                    <img
+                      src={form.image}
+                      alt={form.name}
+                      className="w-16 h-16 object-contain mb-1"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-slate-600 rounded flex items-center justify-center mb-1">
+                      <span className="text-slate-400 text-xs">Sin imagen</span>
+                    </div>
+                  )}
+                  <p className="text-xs font-semibold text-white capitalize text-center">
+                    {getPokemonName(form.name)}
+                  </p>
+                  {formType && (
+                    <p className={`text-xs font-bold ${textColor}`}>
+                      {formType}
+                    </p>
+                  )}
+                  <div className="flex gap-1 flex-wrap justify-center mt-1">
+                    {form.types.map((type) => (
+                      <span
+                        key={type}
+                        className="text-white text-xs px-1 py-0.5 rounded font-semibold"
+                        style={{ backgroundColor: (TYPE_COLORS as any)[type] || "#666" }}
+                      >
+                        {(TYPES_TRANSLATIONS as any)[type] || type}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Cadena de evoluciones de la forma regional si tiene */}
+                {form.evolvesTo && form.evolvesTo.length > 0 && (
+                  <div className={`w-full flex items-center gap-3 ml-2`}>
+                    <div className={`text-2xl font-bold ${arrowColor}`}>→</div>
+                    <div className="flex-1">
+                      <EvolutionTreeComponent
+                        node={form.evolvesTo[0]}
+                        onSelectPokemon={onSelectPokemon}
+                        onSelectRegionalForm={onSelectRegionalForm}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
-      <span className="capitalize text-white text-sm font-semibold mt-1">{pokemon.name}</span>
-      <div className="flex gap-1 mt-2">
-        {pokemon.types.map((type) => (
-          <span
-            key={type}
-            className="px-2 py-1 rounded text-xs text-white font-semibold"
-            style={{ backgroundColor: (TYPE_COLORS as any)[type] || "#6B7280" }}
-          >
-            {(TYPES_TRANSLATIONS as any)[type] || type}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
@@ -782,10 +1291,12 @@ function PokemonEvolutionCard({
 // Componente para mostrar una cadena de evoluciones horizontalmente
 function HorizontalEvolutionChain({ 
   chain,
-  onSelectPokemon 
+  onSelectPokemon,
+  onSelectRegionalForm
 }: { 
   chain: EvolutionNode[];
   onSelectPokemon: (pokemon: PokemonListItem) => void;
+  onSelectRegionalForm?: (form: AlternativeForm) => void;
 }) {
   const lastPokemon = chain[chain.length - 1];
   const hasRamifications = lastPokemon && lastPokemon.evolvesTo.length > 1;
@@ -796,7 +1307,7 @@ function HorizontalEvolutionChain({
       <div className="flex items-center gap-4 flex-shrink-0">
         {chain.map((pokemon, index) => (
           <div key={`${pokemon.id}-${index}`} className="flex items-center gap-4 flex-shrink-0">
-            <PokemonEvolutionCard pokemon={pokemon} onSelectPokemon={onSelectPokemon} />
+            <PokemonEvolutionCard pokemon={pokemon} onSelectPokemon={onSelectPokemon} onSelectRegionalForm={onSelectRegionalForm} />
 
             {/* Flecha y método de evolución - solo si no es el último, o si es el último sin ramificaciones */}
             {index < chain.length - 1 && (
@@ -836,6 +1347,7 @@ function HorizontalEvolutionChain({
                   <EvolutionTreeComponent 
                     node={evolution}
                     onSelectPokemon={onSelectPokemon}
+                    onSelectRegionalForm={onSelectRegionalForm}
                   />
                 </div>
               </div>
@@ -851,16 +1363,18 @@ function HorizontalEvolutionChain({
 // El pokémon original está centrado verticalmente, las ramificaciones horizontales
 function EvolutionTreeComponent({ 
   node, 
-  onSelectPokemon
+  onSelectPokemon,
+  onSelectRegionalForm
 }: { 
   node: EvolutionNode;
   onSelectPokemon: (pokemon: PokemonListItem) => void;
+  onSelectRegionalForm?: (form: AlternativeForm) => void;
 }) {
   // Si no hay evoluciones, mostrar solo el Pokémon actual
   if (node.evolvesTo.length === 0) {
     return (
       <div className="flex items-center">
-        <PokemonEvolutionCard pokemon={node} onSelectPokemon={onSelectPokemon} />
+        <PokemonEvolutionCard pokemon={node} onSelectPokemon={onSelectPokemon} onSelectRegionalForm={onSelectRegionalForm} />
       </div>
     );
   }
@@ -869,7 +1383,7 @@ function EvolutionTreeComponent({
   // (Sin importar si esa evolución tiene múltiples evoluciones posteriores)
   if (node.evolvesTo.length === 1) {
     const chain = getLinearEvolutionChain(node);
-    return <HorizontalEvolutionChain chain={chain} onSelectPokemon={onSelectPokemon} />;
+    return <HorizontalEvolutionChain chain={chain} onSelectPokemon={onSelectPokemon} onSelectRegionalForm={onSelectRegionalForm} />;
   }
 
   // Si hay múltiples evoluciones directas (split evolutions)
@@ -878,7 +1392,7 @@ function EvolutionTreeComponent({
     <div className="flex gap-6">
       {/* Pokémon original centrado verticalmente */}
       <div className="flex items-center">
-        <PokemonEvolutionCard pokemon={node} onSelectPokemon={onSelectPokemon} />
+        <PokemonEvolutionCard pokemon={node} onSelectPokemon={onSelectPokemon} onSelectRegionalForm={onSelectRegionalForm} />
       </div>
 
       {/* Línea conectora vertical */}
@@ -903,6 +1417,7 @@ function EvolutionTreeComponent({
               <EvolutionTreeComponent 
                 node={evolution}
                 onSelectPokemon={onSelectPokemon}
+                onSelectRegionalForm={onSelectRegionalForm}
               />
             </div>
           </div>

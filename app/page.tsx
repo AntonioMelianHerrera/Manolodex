@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { PokemonListItem } from "@/types/pokemon";
 import { getPokemonList } from "@/lib/pokemon";
@@ -10,10 +10,15 @@ import PokemonCard from "@/components/ui/PokemonCard";
 import Filters from "@/components/ui/Filters";
 import PokemonModal from "@/components/ui/PokemonModal";
 
+const ITEMS_PER_PAGE = 150;
+
 function HomeContent() {
   const searchParams = useSearchParams();
-  const [pokemon, setPokemon] = useState<PokemonListItem[]>([]);
+  const [allPokemon, setAllPokemon] = useState<PokemonListItem[]>([]);
+  const [displayedPokemon, setDisplayedPokemon] = useState<PokemonListItem[]>([]);
   const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedGenerations, setSelectedGenerations] = useState<number[]>([]);
@@ -22,8 +27,24 @@ function HomeContent() {
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonListItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  // Referencia para el elemento sentinel (que dispara el lazy loading)
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const dataRef = useRef<{ filteredPokemon: PokemonListItem[]; displayedCount: number }>({
+    filteredPokemon: [],
+    displayedCount: 0,
+  });
+
+  // Cargar lista completa
   useEffect(() => {
-    getPokemonList().then(setPokemon);
+    const loadPokemon = async () => {
+      setIsLoading(true);
+      const data = await getPokemonList();
+      setAllPokemon(data);
+      // Mostrar primeros 150
+      setDisplayedPokemon(data.slice(0, ITEMS_PER_PAGE));
+      setIsLoading(false);
+    };
+    loadPokemon();
   }, []);
 
   // Procesar parámetro de búsqueda desde URL
@@ -33,8 +54,8 @@ function HomeContent() {
       setSearch(searchParam);
       
       // Buscar el pokémon y abrirlo automáticamente
-      if (pokemon.length > 0) {
-        const foundPokemon = pokemon.find(
+      if (allPokemon.length > 0) {
+        const foundPokemon = allPokemon.find(
           (p) => p.name.toLowerCase() === searchParam.toLowerCase()
         );
         if (foundPokemon) {
@@ -43,24 +64,63 @@ function HomeContent() {
         }
       }
     }
-  }, [searchParams, pokemon]);
+  }, [searchParams, allPokemon]);
 
   // Filtrado AND: Pokémon debe cumplir todos los tipos seleccionados y la generación
-  const filteredPokemon = pokemon.filter((p) => {
-    const matchesName = p.name.toLowerCase().includes(search.toLowerCase());
+  const filteredPokemon = useMemo(() => {
+    return allPokemon.filter((p) => {
+      const matchesName = p.name.toLowerCase().includes(search.toLowerCase());
 
-    // AND entre tipos: el Pokémon debe contener todos los tipos seleccionados
-    const matchesType =
-      selectedTypes.length === 0 ||
-      selectedTypes.every((type) => p.types?.includes(type));
+      // AND entre tipos: el Pokémon debe contener todos los tipos seleccionados
+      const matchesType =
+        selectedTypes.length === 0 ||
+        selectedTypes.every((type) => p.types?.includes(type));
 
-    // Generación: OR entre generaciones seleccionadas (solo un número por Pokémon)
-    const matchesGeneration =
-      selectedGenerations.length === 0 ||
-      selectedGenerations.includes(p.generation!);
+      // Generación: OR entre generaciones seleccionadas (solo un número por Pokémon)
+      const matchesGeneration =
+        selectedGenerations.length === 0 ||
+        selectedGenerations.includes(p.generation!);
 
-    return matchesName && matchesType && matchesGeneration;
-  });
+      return matchesName && matchesType && matchesGeneration;
+    });
+  }, [allPokemon, search, selectedTypes, selectedGenerations]);
+
+  // Actualizar las referencias de datos sin disparar efectos
+  useEffect(() => {
+    dataRef.current = { filteredPokemon, displayedCount: displayedPokemon.length };
+  }, [filteredPokemon, displayedPokemon.length]);
+
+  // Intersection Observer para lazy loading
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          // Usar refs para obtener valores actuales sin recrear el efecto
+          const currentCount = dataRef.current.displayedCount;
+          const nextBatch = dataRef.current.filteredPokemon.slice(currentCount, currentCount + ITEMS_PER_PAGE);
+
+          if (nextBatch.length > 0) {
+            setDisplayedPokemon((prev) => [...prev, ...nextBatch]);
+          } else {
+            setHasMore(false);
+          }
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sentinelRef.current) {
+      observer.observe(sentinelRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Resetear cuando cambian los filtros
+  useEffect(() => {
+    setDisplayedPokemon(filteredPokemon.slice(0, ITEMS_PER_PAGE));
+    setHasMore(filteredPokemon.length > ITEMS_PER_PAGE);
+  }, [search, selectedTypes, selectedGenerations, filteredPokemon]);
 
   return (
     <section className="max-w-6xl mx-auto p-4 py-8">
@@ -87,7 +147,7 @@ function HomeContent() {
 
       {/* Grid de Pokémon */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-4">
-        {filteredPokemon.map((p) => (
+        {displayedPokemon.map((p) => (
           <PokemonCard
             key={p.id}
             pokemon={p}
@@ -99,8 +159,18 @@ function HomeContent() {
         ))}
       </div>
 
+      {/* Sentinel para lazy loading */}
+      <div ref={sentinelRef} className="h-10 mt-8" />
+
+      {/* Indicador de carga */}
+      {isLoading && (
+        <p className="text-slate-500 text-sm mt-6 text-center">
+          Cargando más Pokémon...
+        </p>
+      )}
+
       {/* Estado vacío */}
-      {filteredPokemon.length === 0 && (
+      {displayedPokemon.length === 0 && !isLoading && (
         <p className="text-slate-500 text-sm mt-6 text-center">
           No se han encontrado Pokémon con esos filtros
         </p>

@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { TYPE_OFFENSIVE, TYPE_SPANISH_NAMES, TYPE_DEFENSIVE } from "@/lib/typeData";
 import { TYPE_COLORS } from "@/types/colors";
-import { isDesiredPokemonVariant } from "@/lib/pokemon";
+import { isDesiredPokemonVariant, addRegionalFormsForGames } from "@/lib/pokemon";
+import { getPokemonName } from "@/lib/translations";
 
 type GameMode = "easy" | "hard" | "infinite";
 
@@ -66,7 +67,7 @@ export default function TypeTrainingGame({ mode, onExit }: TypeTrainingGameProps
         );
         const data = await response.json();
 
-        const pokemonList = data.results
+        let pokemonList = data.results
           .map((p: any, index: number) => ({
             id: index + 1,
             name: p.name,
@@ -75,7 +76,22 @@ export default function TypeTrainingGame({ mode, onExit }: TypeTrainingGameProps
           }))
           .filter((p: any) => isDesiredPokemonVariant(p.name));
 
-        setAllPokemon(pokemonList);
+        // Agregar formas regionales
+        const formsToAdd = await addRegionalFormsForGames(
+          pokemonList.map((p: any) => ({ id: p.id, name: p.name, generation: 0 })) // Generation 0 para TypeTrainingGame no lo necesita
+        );
+
+        // Combinar lista base con formas regionales
+        const regionalForms = formsToAdd.map((form: any) => ({
+          id: form.id,
+          name: form.name,
+          imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${form.id}.png`,
+          types: [],
+        }));
+
+        const allPokemonList = [...pokemonList, ...regionalForms];
+
+        setAllPokemon(allPokemonList);
       } catch (error) {
         console.error("Error loading pokemon list:", error);
       }
@@ -476,7 +492,7 @@ export default function TypeTrainingGame({ mode, onExit }: TypeTrainingGameProps
         </div>
 
         <h3 className="text-2xl font-bold text-white capitalize mb-3">
-          {gameState.currentPokemon.name}
+          {getPokemonName(gameState.currentPokemon.name)}
         </h3>
 
         {/* Tipos del pokémon */}

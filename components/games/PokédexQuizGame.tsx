@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { CheckIcon, XIcon } from "@/components/icons";
-import { isDesiredPokemonVariant } from "@/lib/pokemon";
+import { isDesiredPokemonVariant, addRegionalFormsForGames } from "@/lib/pokemon";
+import { getPokemonName } from "@/lib/translations";
 
 type GameMode = "normal" | "infinite" | "custom";
 
@@ -141,7 +142,7 @@ export default function PokédexQuizGame({
         );
         const data = await response.json();
 
-        const pokemonList: PokemonWithTypes[] = data.results
+        let pokemonList: PokemonWithTypes[] = data.results
           .map((p: any, index: number) => ({
             id: index + 1,
             name: p.name,
@@ -152,12 +153,33 @@ export default function PokédexQuizGame({
             description: "",
             types: [],
           }))
-          .filter((p: any) => 
-            isDesiredPokemonVariant(p.name) &&
-            selectedGenerations.includes(p.generation)
-          );
+          .filter((p: any) => isDesiredPokemonVariant(p.name));
 
-        setAllPokemon(pokemonList);
+        // Agregar formas regionales con generaciones correctas
+        const formsToAdd = await addRegionalFormsForGames(
+          pokemonList.map(p => ({ id: p.id, name: p.name, generation: p.generation }))
+        );
+
+        // Filtrar formas regionales que no sean en generaciones seleccionadas
+        const regionalForms = formsToAdd
+          .filter(form => form.name !== pokemonList.map(p => p.name).find(n => n === form.name))
+          .map(form => ({
+            id: form.id,
+            name: form.name,
+            imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${
+              form.id
+            }.png`,
+            generation: form.generation,
+            description: "",
+            types: [],
+          }));
+
+        // Combinar base + regionales y filtrar por generaciones seleccionadas
+        const allPokemon = [...pokemonList, ...regionalForms].filter(p =>
+          selectedGenerations.includes(p.generation)
+        );
+
+        setAllPokemon(allPokemon);
       } catch (error) {
         console.error("Error loading pokemon list:", error);
       }
@@ -511,7 +533,7 @@ export default function PokédexQuizGame({
                   className="object-contain"
                 />
               </div>
-              <p className="text-white font-semibold capitalize">{pokemon.name}</p>
+              <p className="text-white font-semibold capitalize">{getPokemonName(pokemon.name)}</p>
 
               {/* Feedback */}
               {gameState.status !== "waiting" && (

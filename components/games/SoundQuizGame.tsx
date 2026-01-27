@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { PlayIcon, CheckIcon, XIcon } from "@/components/icons";
-import { isDesiredPokemonVariant } from "@/lib/pokemon";
+import { isDesiredPokemonVariant, addRegionalFormsForGames } from "@/lib/pokemon";
+import { getPokemonName } from "@/lib/translations";
 
 type GameMode = "normal" | "infinite" | "custom";
 
@@ -82,7 +83,7 @@ export default function SoundQuizGame({
         );
         const data = await response.json();
 
-        const pokemonList = data.results
+        let pokemonList = data.results
           .map((p: any, index: number) => ({
             id: index + 1,
             name: p.name,
@@ -94,12 +95,28 @@ export default function SoundQuizGame({
             }.ogg`,
             generation: getGenerationFromId(index + 1),
           }))
+          .filter((p: any) => isDesiredPokemonVariant(p.name));
+
+        // Agregar formas regionales
+        const formsToAdd = await addRegionalFormsForGames(
+          pokemonList.map((p: any) => ({ id: p.id, name: p.name, generation: p.generation }))
+        );
+
+        // Combinar lista base con formas regionales
+        const regionalForms = formsToAdd.map((form: any) => ({
+          id: form.id,
+          name: form.name,
+          imageUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${form.id}.png`,
+          cryUrl: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/cries/latest/${form.id}.ogg`,
+          generation: form.generation,
+        }));
+
+        const allPokemonList = [...pokemonList, ...regionalForms]
           .filter((p: Pokemon) => 
-            isDesiredPokemonVariant(p.name) &&
             selectedGenerations.includes(p.generation)
           );
 
-        setAllPokemon(pokemonList);
+        setAllPokemon(allPokemonList);
       } catch (error) {
         console.error("Error loading pokemon list:", error);
       }
@@ -462,7 +479,7 @@ export default function SoundQuizGame({
                   className="object-contain"
                 />
               </div>
-              <p className="text-white font-semibold capitalize">{pokemon.name}</p>
+              <p className="text-white font-semibold capitalize">{getPokemonName(pokemon.name)}</p>
 
               {/* Feedback */}
               {gameState.status !== "waiting" && (
