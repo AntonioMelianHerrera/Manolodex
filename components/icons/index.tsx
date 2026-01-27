@@ -21,7 +21,7 @@ export function TypesIcon() {
   return (
     <svg
       className="w-6 h-6"
-      fill="none"
+      fill="currentColor"
       stroke="currentColor"
       viewBox="0 0 24 24"
     >
@@ -29,7 +29,7 @@ export function TypesIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M13 10V3L4 14h7v7l9-11h-7z"
+        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
       />
     </svg>
   );
@@ -244,6 +244,24 @@ export function ItemsIcon() {
         strokeLinejoin="round"
         strokeWidth={2}
         d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+      />
+    </svg>
+  );
+}
+
+export function AttacksIcon() {
+  return (
+    <svg
+      className="w-6 h-6"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13 10V3L4 14h7v7l9-11h-7z"
       />
     </svg>
   );
