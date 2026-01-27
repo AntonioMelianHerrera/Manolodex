@@ -345,39 +345,43 @@ function AttacksContent() {
             {/* Tipos */}
             <div className="mb-3">
               <p className="text-xs text-slate-400 mb-2">Tipos</p>
-              <div className="flex flex-wrap gap-2">
-                <label
-                  className="flex items-center gap-1 p-2 rounded cursor-pointer bg-slate-700 hover:bg-slate-600"
-                >
-                  <input
-                    type="radio"
-                    name="type"
-                    checked={selectedType === ""}
-                    onChange={() => setSelectedType("")}
-                    className="cursor-pointer"
-                  />
-                  Todos
-                </label>
-                {TYPES.map((type) => (
+              <div className="flex flex-col gap-2">
+                <div className="flex">
                   <label
-                    key={type}
-                    className="flex items-center gap-1 p-2 rounded cursor-pointer"
-                    style={{ backgroundColor: selectedType === type ? TYPE_COLORS[type] : "#64748b" }}
+                    className="flex items-center gap-1 p-2 rounded cursor-pointer bg-slate-700 hover:bg-slate-600"
                   >
                     <input
                       type="radio"
                       name="type"
-                      checked={selectedType === type}
-                      onChange={() => setSelectedType(type)}
+                      checked={selectedType === ""}
+                      onChange={() => setSelectedType("")}
                       className="cursor-pointer"
                     />
-                    <img
-                      src={`https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${type}.svg`}
-                      alt={type}
-                      className="w-4 h-4"
-                    />
+                    Todos
                   </label>
-                ))}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {TYPES.map((type) => (
+                    <label
+                      key={type}
+                      className="flex items-center gap-1 p-2 rounded cursor-pointer"
+                      style={{ backgroundColor: selectedType === type ? TYPE_COLORS[type] : "#64748b" }}
+                    >
+                      <input
+                        type="radio"
+                        name="type"
+                        checked={selectedType === type}
+                        onChange={() => setSelectedType(type)}
+                        className="cursor-pointer"
+                      />
+                      <img
+                        src={`https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${type}.svg`}
+                        alt={type}
+                        className="w-4 h-4"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </>
