@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon, TypesIcon, GamesIcon, AbilitiesIcon, ItemsIcon } from "@/components/icons";
+import { HomeIcon, TypesIcon, GamesIcon, AbilitiesIcon } from "@/components/icons";
 
 export default function Header() {
   const pathname = usePathname();
@@ -57,18 +57,6 @@ export default function Header() {
           >
             <AbilitiesIcon />
             <span>Habilidades</span>
-          </Link>
-          <Link
-            href="/items"
-            className={`flex flex-col items-center gap-1 text-xs font-medium transition ${
-              isActive("/items")
-                ? "text-red-500"
-                : "text-slate-300 hover:text-white"
-            }`}
-            title="Objetos"
-          >
-            <ItemsIcon />
-            <span>Objetos</span>
           </Link>
           <Link
             href="/minijuegos"

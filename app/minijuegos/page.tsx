@@ -5,14 +5,13 @@ import TypeTrainingGame from "@/components/games/TypeTrainingGame";
 import SoundQuizGame from "@/components/games/SoundQuizGame";
 import PokédexQuizGame from "@/components/games/PokédexQuizGame";
 import SilhouetteQuizGame from "@/components/games/SilhouetteQuizGame";
-import ItemsQuizGame from "@/components/games/ItemsQuizGame";
-import { TypesIcon, SoundIcon, PokedexIcon, PlayIcon, SettingsIcon, SilhouetteIcon, ItemsIcon } from "@/components/icons";
+
+import { TypesIcon, SoundIcon, PokedexIcon, PlayIcon, SettingsIcon, SilhouetteIcon } from "@/components/icons";
 
 type GameType = "none" | "type-training" | "type-training-easy" | "type-training-hard" | "type-training-infinite" | 
   "sound-quiz" | "sound-quiz-normal" | "sound-quiz-infinite" | "sound-quiz-custom" | 
   "pokedex-quiz" | "pokedex-quiz-normal" | "pokedex-quiz-infinite" | "pokedex-quiz-custom" |
-  "silhouette-quiz" | "silhouette-quiz-all" | "silhouette-quiz-generations" |
-  "items-quiz" | "items-quiz-easy" | "items-quiz-hard" | "items-quiz-custom";
+  "silhouette-quiz" | "silhouette-quiz-all" | "silhouette-quiz-generations";
 
 export default function MinijuegosPage() {
   const [selectedGame, setSelectedGame] = useState<GameType>("none");
@@ -20,7 +19,7 @@ export default function MinijuegosPage() {
   const [showSoundQuizModes, setShowSoundQuizModes] = useState(false);
   const [showPokédexQuizModes, setShowPokédexQuizModes] = useState(false);
   const [showSilhouetteQuizModes, setShowSilhouetteQuizModes] = useState(false);
-  const [showItemsQuizModes, setShowItemsQuizModes] = useState(false);
+
   const [showGenerationFilter, setShowGenerationFilter] = useState(false);
   const [currentGameType, setCurrentGameType] = useState<"sound" | "pokedex" | "silhouette" | null>(null);
   const [bestStreak, setBestStreak] = useState(0);
@@ -57,8 +56,7 @@ export default function MinijuegosPage() {
         return <PokedexIcon />;
       case "silhouette":
         return <SilhouetteIcon />;
-      case "items":
-        return <ItemsIcon />;
+
       default:
         return <TypesIcon />;
     }
@@ -89,12 +87,7 @@ export default function MinijuegosPage() {
       description: "Adivina el Pokémon por su silueta",
       iconType: "silhouette" as const,
     },
-    {
-      id: "items-quiz" as const,
-      title: "Quiz de Objetos",
-      description: "Adivina el objeto por su descripción",
-      iconType: "items" as const,
-    },
+
   ];
 
   if (selectedGame !== "none") {
@@ -118,9 +111,6 @@ export default function MinijuegosPage() {
         {selectedGame === "pokedex-quiz-custom" && <PokédexQuizGame mode="custom" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
         {selectedGame === "silhouette-quiz-all" && <SilhouetteQuizGame mode="all" onExit={() => setSelectedGame("none")} />}
         {selectedGame === "silhouette-quiz-generations" && <SilhouetteQuizGame mode="generations" selectedGenerations={selectedGenerations} onExit={() => setSelectedGame("none")} />}
-        {selectedGame === "items-quiz-easy" && <ItemsQuizGame mode="easy" onExit={() => setSelectedGame("none")} />}
-        {selectedGame === "items-quiz-hard" && <ItemsQuizGame mode="hard" onExit={() => setSelectedGame("none")} />}
-        {selectedGame === "items-quiz-custom" && <ItemsQuizGame mode="custom" onExit={() => setSelectedGame("none")} />}
       </section>
     );
   }
@@ -498,77 +488,6 @@ export default function MinijuegosPage() {
     );
   }
 
-  // Selector de modo para Quiz de Objetos
-  if (showItemsQuizModes) {
-    return (
-      <section className="max-w-6xl mx-auto p-4 py-8">
-        <button
-          onClick={() => setShowItemsQuizModes(false)}
-          className="mb-6 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-        >
-          ← Volver
-        </button>
-
-        <h2 className="text-3xl font-bold text-red-500 mb-8">
-          Selecciona el Modo
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <button
-            onClick={() => {
-              setSelectedGame("items-quiz-easy");
-              setShowItemsQuizModes(false);
-            }}
-            className="bg-green-900 hover:bg-green-800 border border-green-700 hover:border-green-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
-          >
-            <div className="text-6xl mb-3 inline-block">
-              <ItemsIcon />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">Fácil</h3>
-            <p className="text-slate-300 text-sm mb-4">
-              10 objetos • Sin límite de tiempo • Continúa aunque falles
-            </p>
-            <p className="text-green-300 font-semibold">Perfecto para aprender</p>
-          </button>
-
-          <button
-            onClick={() => {
-              setSelectedGame("items-quiz-hard");
-              setShowItemsQuizModes(false);
-            }}
-            className="bg-yellow-900 hover:bg-yellow-800 border border-yellow-700 hover:border-yellow-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
-          >
-            <div className="text-6xl mb-3 inline-block">
-              <ItemsIcon />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">Difícil</h3>
-            <p className="text-slate-300 text-sm mb-4">
-              20 objetos • 10 segundos por pregunta • Continúa aunque falles
-            </p>
-            <p className="text-yellow-300 font-semibold">Para expertos</p>
-          </button>
-
-          <button
-            onClick={() => {
-              setSelectedGame("items-quiz-custom");
-              setShowItemsQuizModes(false);
-            }}
-            className="bg-purple-900 hover:bg-purple-800 border border-purple-700 hover:border-purple-500 rounded-xl p-6 transition-all transform hover:scale-105 text-center"
-          >
-            <div className="text-6xl mb-3 inline-block">
-              <SettingsIcon />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">Personalizado</h3>
-            <p className="text-slate-300 text-sm mb-4">
-              Sin límite de preguntas • Sin límite de tiempo • Termina en el primer error
-            </p>
-            <p className="text-purple-300 font-semibold">A tu medida</p>
-          </button>
-        </div>
-      </section>
-    );
-  }
-
   // Selector de modo para Entrenamiento de Tipos
   if (showTypeTrainingModes) {
     return (
@@ -652,8 +571,6 @@ export default function MinijuegosPage() {
                 setShowPokédexQuizModes(true);
               } else if (game.id === "silhouette-quiz") {
                 setShowSilhouetteQuizModes(true);
-              } else if (game.id === "items-quiz") {
-                setShowItemsQuizModes(true);
               } else {
                 setSelectedGame(game.id as GameType);
               }
