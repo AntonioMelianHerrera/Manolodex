@@ -7,8 +7,6 @@ import SearchBar from "@/components/ui/SearchBar";
 import { TYPES_TRANSLATIONS } from "@/lib/translations";
 import { TYPE_COLORS } from "@/types/colors";
 
-const GENERATIONS = [1,2,3,4,5,6,7,8,9];
-
 const TYPES = [
   "normal","fire","water","electric","grass","ice",
   "fighting","poison","ground","flying","psychic",
@@ -180,7 +178,6 @@ function AttacksContent() {
   const [selectedMove, setSelectedMove] = useState<MoveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<string>("");
-  const [selectedGenerations, setSelectedGenerations] = useState<number[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -379,30 +376,6 @@ function AttacksContent() {
                       alt={type}
                       className="w-4 h-4"
                     />
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Generaciones */}
-            <div>
-              <p className="text-xs text-slate-400 mb-2">Generación</p>
-              <div className="flex gap-2 flex-wrap">
-                {GENERATIONS.map((gen) => (
-                  <label key={gen} className="flex gap-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedGenerations.includes(gen)}
-                      onChange={() => {
-                        if (selectedGenerations.includes(gen)) {
-                          setSelectedGenerations(selectedGenerations.filter((g) => g !== gen));
-                        } else {
-                          setSelectedGenerations([...selectedGenerations, gen]);
-                        }
-                      }}
-                      className="cursor-pointer"
-                    />
-                    Gen {gen}
                   </label>
                 ))}
               </div>
