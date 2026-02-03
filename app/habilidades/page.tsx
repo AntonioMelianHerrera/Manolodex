@@ -67,10 +67,14 @@ function AbilitiesContent() {
             const pokemonWithAbility: PokemonWithAbility[] = [];
             if (abilityDetail.pokemon && abilityDetail.pokemon.length > 0) {
               abilityDetail.pokemon.forEach((p: any) => {
+                const pokeName: string = p.pokemon.name;
+                // Excluir formas Gigantamax (suffixes: -gmax, -gigantamax)
+                if (/-gmax$|-gigantamax$/.test(pokeName)) return;
+
                 const urlParts = p.pokemon.url.split("/").filter(Boolean);
                 const id = parseInt(urlParts[urlParts.length - 1], 10);
                 pokemonWithAbility.push({
-                  name: p.pokemon.name,
+                  name: pokeName,
                   id,
                   isHidden: p.is_hidden,
                 });

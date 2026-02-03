@@ -8,6 +8,8 @@ import { TYPES_TRANSLATIONS } from "@/lib/translations";
 import { TYPE_COLORS } from "@/types/colors";
 import { movesData } from "@/lib/movesData";
 
+const movesLookup = movesData as Record<string, { name: string; description: string }>;
+
 const TYPES = [
   "normal","fire","water","electric","grass","ice",
   "fighting","poison","ground","flying","psychic",
@@ -33,7 +35,11 @@ interface MoveData {
 }
 
 function getMoveTranslation(moveName: string): string {
-  return movesData[moveName.toLowerCase()]?.name || moveName.charAt(0).toUpperCase() + moveName.slice(1).replace(/-/g, " ");
+  const key = moveName.toLowerCase();
+  return (
+    movesLookup[key]?.name ||
+    moveName.charAt(0).toUpperCase() + moveName.slice(1).replace(/-/g, " ")
+  );
 }
 
 function AttacksContent() {
@@ -76,14 +82,48 @@ function AttacksContent() {
               description += ` (${moveDetail.effect_chance}% de probabilidad)`;
             }
 
-            // Obtener pokémon que pueden aprender este ataque
+            // Helper: permitir SOLO formas base y regionales (-alola, -galar, -hisui, -paldea)
+            // Rechazar TODAS las otras variantes (totem, ash, gulping, primal, mega, gmax, etc.)
+            const isNormalOrRegional = (name: string): boolean => {
+              const lower = name.toLowerCase();
+              
+              // Permitir formas regionales específicas
+              const allowedRegionals = ["-alola", "-galar", "-hisui", "-paldea"];
+              if (allowedRegionals.some((regional) => lower.endsWith(regional))) return true;
+              
+              // Si contiene un guión y NO es una forma regional, verificar si es variante
+              const parts = lower.split("-");
+              if (parts.length > 2) {
+                // Nombre con múltiples guiones (ej: "raticate-alola-totem") - rechazar
+                return false;
+              }
+              if (parts.length === 2) {
+                // Nombre con un guión (ej: "mr-mime" o "greninja-ash")
+                const suffix = parts[1];
+                // Lista de palabras que indican variantes no permitidas
+                const variantKeywords = [
+                  "totem", "ash", "gulping", "lowkey", "amped", "gmax", "gigantamax",
+                  "mega", "primal", "eternamax", "crowned", "unbound", "origin",
+                  "active", "battle-bond", "disguised", "busted", "zenith"
+                ];
+                if (variantKeywords.includes(suffix)) return false;
+              }
+              
+              // Por defecto permitir (formas base)
+              return true;
+            };
+
+            // Obtener pokémon que pueden aprender este ataque (cargar todos)
             const pokemonLearners: PokemonLearner[] = [];
             if (moveDetail.learned_by_pokemon && moveDetail.learned_by_pokemon.length > 0) {
-              moveDetail.learned_by_pokemon.slice(0, 50).forEach((p: any) => {
+              moveDetail.learned_by_pokemon.forEach((p: any) => {
+                const pokeName: string = p.name;
+                if (!isNormalOrRegional(pokeName)) return;
+
                 const urlParts = p.url.split("/").filter(Boolean);
                 const id = parseInt(urlParts[urlParts.length - 1], 10);
                 pokemonLearners.push({
-                  name: p.name,
+                  name: pokeName,
                   id,
                 });
               });
@@ -342,7 +382,7 @@ function AttacksContent() {
               <div>
                 <h3 className="text-lg font-semibold text-red-500 mb-3">Descripción y Efecto</h3>
                 <p className="text-slate-300 leading-relaxed">
-                  {movesData[selectedMove.name.toLowerCase()]?.description || selectedMove.description}
+                  {movesLookup[selectedMove.name.toLowerCase()]?.description || selectedMove.description}
                 </p>
               </div>
 

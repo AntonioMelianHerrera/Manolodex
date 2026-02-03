@@ -446,7 +446,26 @@ export default function SilhouetteQuizGame({
       );
       
       // Combinar: primero los que empiezan, luego el resto
-      const filtered = [...startsWith, ...includes].slice(0, 10);
+      const combined = [...startsWith, ...includes];
+
+      // Deduplicar por nombre mostrado (clean name) para evitar opciones visualmente idénticas
+      const seen = new Set<string>();
+      const unique: PokemonWithTypes[] = [];
+      for (const p of combined) {
+        const key = getPokemonName(p.name).toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(p);
+        } else {
+          // Si hay un duplicado y es el pokémon actual, priorizarlo (reemplazar)
+          if (gameState.currentPokemon && p.id === gameState.currentPokemon.id) {
+            const idx = unique.findIndex((u) => getPokemonName(u.name).toLowerCase() === key);
+            if (idx !== -1) unique[idx] = p;
+          }
+        }
+      }
+
+      const filtered = unique.slice(0, 10);
 
       setSuggestions(filtered);
       setSelectedSuggestionIndex(-1);
@@ -579,7 +598,7 @@ export default function SilhouetteQuizGame({
 
       {/* Input de respuesta */}
       <div className="bg-slate-900 rounded-xl p-8 border border-slate-800 mb-8">
-        <div className="flex gap-3 mb-4">
+        <div className="flex items-start gap-3 mb-4">
           <div className="flex-1 relative">
             <input
               ref={inputRef}
@@ -592,9 +611,9 @@ export default function SilhouetteQuizGame({
               className="w-full px-4 py-3 rounded-lg bg-slate-800 text-white border border-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
             />
 
-            {/* Dropdown de sugerencias */}
+            {/* Dropdown de sugerencias (no absolute, para mantener footer al final) */}
             {suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-10">
+              <div className="mt-1 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
                 {suggestions.map((pokemon, index) => (
                   <button
                     key={pokemon.id}
