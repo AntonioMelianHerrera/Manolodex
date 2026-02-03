@@ -109,12 +109,12 @@ const ABILITIES_MAP: Record<string, string> = {
   "run-away": "Huida",
   "keen-eye": "Ojo Agudo",
   "hydration": "Hidratación",
-  "water-compaction": "Compactación Acuosa",
+  "water-compaction": "Hidrorrefuerzo",
   "damp": "Humedad",
   "magma-armor": "Armadura Magma",
   "swift-swim": "Nado Rápido",
   "chlorophyll": "Clorofila",
-  "sand-veil": "Velo Arenoso",
+  "sand-veil": "Velo Arena",
   "harvest": "Cosecha",
   "illuminate": "Iluminación",
   "forecast": "Previsión",
@@ -138,8 +138,8 @@ const ABILITIES_MAP: Record<string, string> = {
   "levitate": "Levitación",
   "unaware": "Desconocedor",
   "friend-guard": "Guardaespaldas",
-  "magician": "Magia",
-  "protean": "Prototipo",
+  "magician": "Prestidigitador",
+  "protean": "Mutatipo",
 };
 
 // Función para obtener traducción de habilidad
